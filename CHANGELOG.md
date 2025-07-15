@@ -11,6 +11,17 @@
 
 ---
 
+## 🎉 1.0.1 - The "Maintenance & Polish" Release
+
+**✨ Minor Improvements & Quality Assurance**
+
+-   **⬆️ Version Bump:** Updated package version to `1.0.1` in `pubspec.yaml`.
+-   **📚 Documentation Refinement:** Improved `README.md` structure and content for better clarity and `pub.dev` compliance.
+-   **✅ Quality Checks:** Confirmed all unit tests pass and static analysis shows no issues.
+-   **📦 Package Validation:** Ensured package passes `pub.dev` validation checks.
+
+---
+
 ## 🚀 0.5.0 - The "Fully Automated & Comprehensive" Release
 
 **✨ Major UI/UX & Automation Improvements**
