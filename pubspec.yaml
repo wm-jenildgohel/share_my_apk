@@ -1,6 +1,6 @@
 name: share_my_apk
-description: "🚀 The ultimate Flutter APK build & upload automation tool. One command builds, organizes, and uploads APKs to Diawi/Gofile with smart provider switching. Production-ready with 100+ tests, comprehensive error handling, and enterprise-grade reliability. Perfect for CI/CD pipelines and development workflows."
-version: 1.0.0
+description: "Flutter CLI tool for building and uploading APKs to file sharing services with smart provider switching."
+version: 1.0.1
 
 # Package metadata for pub.dev
 homepage: https://github.com/wm-jenildgohel/share_my_apk
@@ -16,11 +16,6 @@ topics:
   - upload
   - flutter
   - cli
-  - automation
-  - build-tool
-  - devops
-  - ci-cd
-  - deployment
 
 platforms: 
   android:
