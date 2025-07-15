@@ -89,7 +89,11 @@
 
 ---
 
-## ⚡ Quick Start
+## Usage
+
+This section provides a quick overview of how to use `share_my_apk`. For more detailed examples, refer to the [Usage Examples](#-usage-examples) section.
+
+### ⚡ Quick Start
 
 ### 1️⃣ Install
 ```bash
@@ -111,7 +115,9 @@ share_my_apk
 
 ---
 
-## 📦 Installation Options
+## Installation
+
+This section details how to install `share_my_apk`. For more options, refer to the [Installation Options](#-installation-options) section.
 
 ### 🌍 Global Installation
 ```bash
@@ -128,7 +134,9 @@ dev_dependencies:
 
 ---
 
-## 🎮 Usage Examples
+
+
+## Examples
 
 ### 🔧 Basic Usage
 
