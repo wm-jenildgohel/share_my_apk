@@ -6,8 +6,18 @@ import 'package:yaml/yaml.dart';
 /// This service extracts configuration options for the share_my_apk package
 /// from a dedicated `share_my_apk.yaml` file, allowing users to set default
 /// values for various options without specifying them on the command line.
+/// Service for reading configuration from `share_my_apk.yaml`.
+///
+/// This service extracts configuration options for the share_my_apk package
+/// from a dedicated `share_my_apk.yaml` file, allowing users to set default
+/// values for various options without specifying them on the command line.
 class ConfigService {
   static const _configFileName = 'share_my_apk.yaml';
+
+  /// Creates an instance of [ConfigService].
+  ///
+  /// This class is not meant to be instantiated, as it provides static methods only.
+  const ConfigService();
 
   /// Reads share_my_apk configuration from `share_my_apk.yaml`.
   ///

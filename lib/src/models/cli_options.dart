@@ -95,6 +95,10 @@ class CliOptions {
   /// This ensures localization files are generated before building.
   /// Defaults to `true`.
   final bool generateL10n;
+  /// Whether to show verbose output.
+  ///
+  /// When `true`, the tool will print more detailed logs for debugging purposes.
+  /// Defaults to `false`.
   final bool verbose;
 
   /// Creates a new [CliOptions] instance.

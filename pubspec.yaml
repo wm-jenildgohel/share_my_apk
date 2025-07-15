@@ -1,5 +1,5 @@
 name: share_my_apk
-description: "Flutter CLI tool for building and uploading APKs to file sharing services with smart provider switching."
+description: "CLI tool for building and uploading Android APKs."
 version: 1.0.1
 
 # Package metadata for pub.dev
@@ -17,8 +17,10 @@ topics:
   - flutter
   - cli
 
-platforms: 
-  android:
+platforms:
+  android: # This package is specifically for Android APK building and uploading.
+           # Other platforms are not supported as it relies on Android-specific build processes.
+           # Not compatible with WASM due to dart:io usage.
 
 environment:
   sdk: ^3.8.1

@@ -4,8 +4,12 @@ import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 /// A service for organizing and renaming built APK files.
+/// A service for organizing and renaming built APK files.
 class ApkOrganizerService {
   static final Logger _logger = Logger('ApkOrganizerService');
+
+  /// Creates an instance of [ApkOrganizerService].
+  const ApkOrganizerService();
 
   /// Organizes a built APK file by moving and renaming it based on the
   /// provided options.
