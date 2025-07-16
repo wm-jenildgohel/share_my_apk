@@ -4,19 +4,21 @@ import 'package:path/path.dart' as path;
 class SoundNotificationUtil {
   static void playNotificationSound() {
     try {
-      _playNotificationFile();
+      // Try audio file first, fallback to system sounds
+      final audioFile = _getNotificationSoundPath();
+      
+      if (File(audioFile).existsSync()) {
+        _playNotificationFile(audioFile);
+      } else {
+        // Use system notification sounds (more reliable for global installs)
+        _playSystemFallback();
+      }
     } catch (e) {
-      // Silently fail if sound cannot be played
+      // Silent fail
     }
   }
 
-  static void _playNotificationFile() {
-    final audioFile = _getNotificationSoundPath();
-    
-    if (!File(audioFile).existsSync()) {
-      return; // Silent fail if file doesn't exist
-    }
-
+  static void _playNotificationFile(String audioFile) {
     if (Platform.isWindows) {
       _playWindowsAudio(audioFile);
     } else if (Platform.isLinux) {
@@ -109,6 +111,31 @@ class SoundNotificationUtil {
           // Silent fail
         }
       }
+    }
+  }
+
+  static void _playSystemFallback() {
+    try {
+      if (Platform.isWindows) {
+        // Pleasant Windows notification sound
+        Process.runSync('rundll32', ['user32.dll,MessageBeep', '64']);
+      } else if (Platform.isLinux) {
+        // Try Linux notification sounds
+        try {
+          Process.runSync('pactl', ['play-sample', 'message-new-instant']);
+        } catch (e) {
+          try {
+            Process.runSync('canberra-gtk-play', ['-i', 'complete']);
+          } catch (e) {
+            // Silent fail
+          }
+        }
+      } else if (Platform.isMacOS) {
+        // Pleasant macOS sound
+        Process.runSync('afplay', ['/System/Library/Sounds/Glass.aiff']);
+      }
+    } catch (e) {
+      // Silent fail
     }
   }
 }
