@@ -4,7 +4,7 @@ import 'package:share_my_apk/share_my_apk.dart';
 import 'package:share_my_apk/src/utils/console_logger.dart';
 import 'package:share_my_apk/src/utils/message_util.dart' as message_util;
 import 'package:share_my_apk/src/utils/sound_notification_util.dart';
-import 'package:yaml/yaml.dart';
+import 'package:share_my_apk/src/version.dart';
 
 class CliRunner {
   final ConsoleLogger _logger;
@@ -13,7 +13,6 @@ class CliRunner {
 
   Future<void> run(List<String> arguments) async {
     try {
-      final packageVersion = await _getPackageVersion();
       _printWelcomeMessage(packageVersion);
 
       final argParserUtil = ArgParserUtil();
@@ -123,17 +122,6 @@ class CliRunner {
     _logger.info('');
   }
 
-  Future<String> _getPackageVersion() async {
-    try {
-      final pubspecFile = File('pubspec.yaml');
-      final yamlString = await pubspecFile.readAsString();
-      final yamlMap = loadYaml(yamlString);
-      return yamlMap['version'] as String;
-    } catch (e) {
-      _logger.warning('Could not read package version from pubspec.yaml: $e');
-      return 'Unknown';
-    }
-  }
 
   void _showConfigurationInfo(CliOptions options) {
     _logger.info('Configuration loaded:');
