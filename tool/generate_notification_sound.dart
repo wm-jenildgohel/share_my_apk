@@ -46,12 +46,19 @@ void generateNotificationSound() {
     _writeInt16(data, 44 + i * 2, sampleInt);
   }
   
-  // Write to file
-  final file = File('assets/sounds/notification.wav');
-  file.parent.createSync(recursive: true);
-  file.writeAsBytesSync(data);
+  // Write to both locations for compatibility
+  final locations = [
+    'lib/assets/sounds/notification.wav',
+    'assets/sounds/notification.wav', // Keep for backward compatibility
+  ];
   
-  print('Generated pleasant notification sound: ${file.path}');
+  for (final location in locations) {
+    final file = File(location);
+    file.parent.createSync(recursive: true);
+    file.writeAsBytesSync(data);
+    print('Generated pleasant notification sound: ${file.path}');
+  }
+  
   print('Duration: ${duration}s, Sample rate: ${sampleRate}Hz');
 }
 

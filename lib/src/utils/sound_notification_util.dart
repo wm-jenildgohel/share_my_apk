@@ -29,14 +29,20 @@ class SoundNotificationUtil {
   }
 
   static String _getNotificationSoundPath() {
-    // Get the directory where the executable is running
-    final executableDir = path.dirname(Platform.resolvedExecutable);
-    
     // Try different possible locations for the sound file
     final possiblePaths = [
-      path.join(executableDir, 'assets', 'sounds', 'notification.wav'),
+      // Development environment
+      path.join(Directory.current.path, 'lib', 'assets', 'sounds', 'notification.wav'),
       path.join(Directory.current.path, 'assets', 'sounds', 'notification.wav'),
-      path.join(executableDir, '..', 'assets', 'sounds', 'notification.wav'),
+      
+      // Global package installation - the lib/assets should be accessible
+      path.join(path.dirname(Platform.script.path), 'lib', 'assets', 'sounds', 'notification.wav'),
+      path.join(path.dirname(Platform.script.path), '..', 'lib', 'assets', 'sounds', 'notification.wav'),
+      path.join(path.dirname(Platform.script.path), '..', '..', 'lib', 'assets', 'sounds', 'notification.wav'),
+      
+      // Alternative paths for different package structures
+      path.join(path.dirname(Platform.resolvedExecutable), 'lib', 'assets', 'sounds', 'notification.wav'),
+      path.join(path.dirname(Platform.resolvedExecutable), '..', 'lib', 'assets', 'sounds', 'notification.wav'),
     ];
     
     for (final soundPath in possiblePaths) {
