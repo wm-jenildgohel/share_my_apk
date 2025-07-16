@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "byterover-mcp": {
+      "type": "http",
+      "url": "https://mcp.byterover.dev/mcp?machineId=1f0620bb-1e39-6610-8a8d-821287ef4b63"
+    }
+  }
+}

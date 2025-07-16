@@ -640,4 +640,8 @@ This CLAUDE.md file should be updated whenever:
 
 ---
 
-*This knowledge base is designed to provide comprehensive understanding of the share_my_apk project for future development and maintenance.*
+*This knowledge base is designed to provide comprehensive understanding of the share_my_apk project for future development and maintenance.*[byterover-mcp]
+
+# important 
+always use byterover-retrive-knowledge tool to get the related context before any tasks 
+always use byterover-store-knowledge to store all the critical informations after sucessful tasks
