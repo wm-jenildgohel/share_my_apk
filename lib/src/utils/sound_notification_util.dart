@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 import 'package:share_my_apk/src/utils/notification_sound_data.dart';
 
