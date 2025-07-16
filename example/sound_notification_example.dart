@@ -9,5 +9,4 @@ void main() {
   
   stdout.writeln('Sound notification test completed!');
   stdout.writeln('You should have heard a pleasant dual-tone notification sound (800Hz + 1000Hz, 300ms).');
-  stdout.writeln('The sound file is located at lib/assets/sounds/notification.wav');
 }

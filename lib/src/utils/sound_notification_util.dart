@@ -33,7 +33,6 @@ class SoundNotificationUtil {
     final possiblePaths = [
       // Development environment
       path.join(Directory.current.path, 'lib', 'assets', 'sounds', 'notification.wav'),
-      path.join(Directory.current.path, 'assets', 'sounds', 'notification.wav'),
       
       // Global package installation - the lib/assets should be accessible
       path.join(path.dirname(Platform.script.path), 'lib', 'assets', 'sounds', 'notification.wav'),
