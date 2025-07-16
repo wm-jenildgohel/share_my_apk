@@ -101,6 +101,13 @@ class CliOptions {
   /// Defaults to `false`.
   final bool verbose;
 
+  /// Whether to play a sound notification after successful upload.
+  ///
+  /// When `true`, plays a system beep/notification sound when the APK
+  /// has been successfully uploaded. Works cross-platform.
+  /// Defaults to `true`.
+  final bool sound;
+
   /// Creates a new [CliOptions] instance.
   ///
   /// All parameters are optional and have sensible defaults.
@@ -120,6 +127,7 @@ class CliOptions {
     this.getPubDeps = true,
     this.generateL10n = true,
     this.verbose = false,
+    this.sound = true,
   });
 
   /// Creates a copy of this [CliOptions] with the given fields replaced.
@@ -140,6 +148,7 @@ class CliOptions {
     bool? getPubDeps,
     bool? generateL10n,
     bool? verbose,
+    bool? sound,
   }) {
     return CliOptions(
       token: token ?? this.token,
@@ -155,6 +164,7 @@ class CliOptions {
       getPubDeps: getPubDeps ?? this.getPubDeps,
       generateL10n: generateL10n ?? this.generateL10n,
       verbose: verbose ?? this.verbose,
+      sound: sound ?? this.sound,
     );
   }
 
@@ -173,7 +183,8 @@ class CliOptions {
         'clean: $clean, '
         'getPubDeps: $getPubDeps, '
         'generateL10n: $generateL10n, '
-        'verbose: $verbose'
+        'verbose: $verbose, '
+        'sound: $sound'
         ')';
   }
 }

@@ -200,6 +200,7 @@ class CliOptions {
 | `--name` | `-n` | String | - | Custom APK name |
 | `--environment` | `-e` | String | - | Environment folder |
 | `--output-dir` | `-o` | String | - | Output directory |
+| `--sound` | `-s` | Flag | `true` | Play sound notification |
 
 ### Usage Examples
 
@@ -218,6 +219,12 @@ share_my_apk --no-release --output-dir build/debug_apks
 
 # Override config file settings
 share_my_apk --diawi-token new_token --path /custom/project/path
+
+# Sound is enabled by default
+share_my_apk --provider gofile
+
+# Disable sound notification  
+share_my_apk --no-sound --name MyApp_v2 --environment prod
 ```
 
 ## Configuration System
@@ -245,6 +252,9 @@ release: true
 name: MyApp_Production
 environment: prod
 output-dir: build/releases
+
+# Notification settings (sound enabled by default)
+# sound: false  # Uncomment to disable
 
 # Additional settings can be added here
 ```
@@ -499,7 +509,7 @@ void main() async {
 
 ### Publishing Details
 - **Package Name**: `share_my_apk`
-- **Current Version**: `0.4.0-beta`
+- **Current Version**: `1.1.0-beta`
 - **Repository**: https://github.com/wm-jenildgohel/share_my_apk
 - **Pub.dev**: Ready for beta publishing
 - **License**: As specified in LICENSE file
@@ -511,6 +521,12 @@ void main() async {
 - **Flutter Version**: Compatible with current stable Flutter
 
 ### Version History
+- **1.1.0-beta**: **Sound Notification Release**
+  - 🎵 Added cross-platform sound notification feature for successful uploads
+  - 🌍 Universal compatibility across Windows, Linux, and macOS with fallback mechanisms
+  - 🎛️ New `--sound` / `-s` CLI flag and YAML configuration option
+  - 🧪 Comprehensive testing with unit tests and examples
+  - 🔇 Graceful degradation with silent failure if sound unavailable
 - **1.0.0**: **Production Ready Release with Configuration Fix**
   - ✅ First stable production release after comprehensive testing
   - 🐛 Fixed critical configuration bug: removed hardcoded 'diawi' default that was overriding YAML config

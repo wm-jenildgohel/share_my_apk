@@ -44,3 +44,8 @@ pub-get: true
 # Generate localizations if lib/l10n exists (recommended: true)
 gen-l10n: true
 
+# 🔔 NOTIFICATION SETTINGS  
+# Play sound notification after successful upload (default: true)
+# Works cross-platform: Windows, Linux, macOS
+# Uncomment to disable: sound: false
+

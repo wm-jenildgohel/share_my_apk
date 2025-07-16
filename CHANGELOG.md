@@ -1,3 +1,33 @@
+## 🎵 1.1.0-beta - The "Sound Notification" Release
+
+**🔔 Cross-Platform Sound Notifications**
+
+-   **🎵 Sound Notifications:** Added cross-platform sound notification feature that plays a beep/notification sound after successful APK upload (enabled by default).
+-   **🌍 Universal Compatibility:** Works on Windows, Linux, and macOS with multiple fallback mechanisms for maximum reliability.
+-   **⚙️ Multiple Implementation Strategies:**
+    -   Primary: ASCII bell character (`\x07`) for terminal beep
+    -   Windows: `rundll32` system beep + PowerShell fallback
+    -   Linux: `pactl` + `beep` + `speaker-test` fallbacks
+    -   macOS: `afplay` system sound + `osascript` fallback
+-   **🎛️ CLI Integration:** New `--sound` / `-s` flag for enabling sound notifications
+-   **📄 YAML Configuration:** Added `sound: true/false` option to configuration files
+-   **🧪 Comprehensive Testing:** Added unit tests and example for sound notification functionality
+-   **🔇 Graceful Degradation:** Fails silently if sound cannot be played without breaking main workflow
+
+**Usage Examples:**
+```bash
+share_my_apk                   # Sound enabled by default
+share_my_apk --no-sound        # Disable sound notification
+```
+
+**YAML Configuration:**
+```yaml
+sound: false                   # Disable sound (enabled by default)
+provider: gofile
+```
+
+---
+
 ## 🎉 1.0.0 - The "Production Ready" Release
 
 **🚀 First Stable Production Release**

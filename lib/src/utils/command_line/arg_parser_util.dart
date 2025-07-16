@@ -24,6 +24,7 @@ class ArgParserUtil {
   static const _getPubDeps = 'pub-get';
   static const _generateL10n = 'gen-l10n';
   static const _verbose = 'verbose';
+  static const _sound = 'sound';
 
   /// Creates an instance of [ArgParserUtil] and initializes the argument parser.
   ArgParserUtil() {
@@ -94,6 +95,12 @@ class ArgParserUtil {
       help: 'Show verbose output.',
       defaultsTo: false,
     );
+    _parser.addFlag(
+      _sound,
+      abbr: 's',
+      help: 'Play sound notification after successful upload.',
+      defaultsTo: true,
+    );
   }
 
   /// Parses the command-line arguments and returns a [CliOptions] object.
@@ -151,6 +158,8 @@ class ArgParserUtil {
         (config['gen-l10n'] as bool? ?? true);
     final verbose =
         argResults[_verbose] as bool? ?? (config['verbose'] as bool? ?? false);
+    final sound =
+        argResults[_sound] as bool? ?? (config['sound'] as bool? ?? true);
 
     // Enhanced validation with helpful messaging
     if (provider == 'diawi' && token == null) {
@@ -204,6 +213,7 @@ class ArgParserUtil {
       getPubDeps: getPubDeps,
       generateL10n: generateL10n,
       verbose: verbose,
+      sound: sound,
     );
   }
 }

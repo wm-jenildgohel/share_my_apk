@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:share_my_apk/share_my_apk.dart';
 import 'package:share_my_apk/src/utils/console_logger.dart';
 import 'package:share_my_apk/src/utils/message_util.dart' as message_util;
+import 'package:share_my_apk/src/utils/sound_notification_util.dart';
 import 'package:yaml/yaml.dart';
 
 class CliRunner {
@@ -86,6 +87,10 @@ class CliRunner {
       }
 
       final downloadLink = await uploader.upload(apkPath);
+
+      if (options.sound) {
+        SoundNotificationUtil.playNotificationSound();
+      }
 
       stdout.writeln('\n' * 3);
       message_util.MessageUtil.printSuccessBox(provider, downloadLink);
