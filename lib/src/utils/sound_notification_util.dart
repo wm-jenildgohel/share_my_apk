@@ -1,20 +1,20 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path/path.dart' as path;
+import 'package:share_my_apk/src/utils/notification_sound_data.dart';
 
 class SoundNotificationUtil {
   static void playNotificationSound() {
     try {
-      // Try audio file first, fallback to system sounds
-      final audioFile = _getNotificationSoundPath();
-      
-      if (File(audioFile).existsSync()) {
-        _playNotificationFile(audioFile);
-      } else {
-        // Use system notification sounds (more reliable for global installs)
-        _playSystemFallback();
-      }
+      final soundData = base64Decode(NotificationSoundData.base64Encoded);
+      final tempDir = Directory.systemTemp.createTempSync('share_my_apk_');
+      final tempFile = File(path.join(tempDir.path, 'notification.wav'));
+      tempFile.writeAsBytesSync(soundData);
+      _playNotificationFile(tempFile.path);
+      tempDir.deleteSync(recursive: true);
     } catch (e) {
-      // Silent fail
+      _playSystemFallback();
     }
   }
 
@@ -28,39 +28,11 @@ class SoundNotificationUtil {
     }
   }
 
-  static String _getNotificationSoundPath() {
-    // Try different possible locations for the sound file
-    final possiblePaths = [
-      // Development environment
-      path.join(Directory.current.path, 'lib', 'assets', 'sounds', 'notification.wav'),
-      
-      // Global package installation - the lib/assets should be accessible
-      path.join(path.dirname(Platform.script.path), 'lib', 'assets', 'sounds', 'notification.wav'),
-      path.join(path.dirname(Platform.script.path), '..', 'lib', 'assets', 'sounds', 'notification.wav'),
-      path.join(path.dirname(Platform.script.path), '..', '..', 'lib', 'assets', 'sounds', 'notification.wav'),
-      
-      // Alternative paths for different package structures
-      path.join(path.dirname(Platform.resolvedExecutable), 'lib', 'assets', 'sounds', 'notification.wav'),
-      path.join(path.dirname(Platform.resolvedExecutable), '..', 'lib', 'assets', 'sounds', 'notification.wav'),
-    ];
-    
-    for (final soundPath in possiblePaths) {
-      if (File(soundPath).existsSync()) {
-        return soundPath;
-      }
-    }
-    
-    // Default path (may not exist)
-    return possiblePaths.first;
-  }
-
   static void _playWindowsAudio(String audioFile) {
     try {
       // Use PowerShell SoundPlayer for WAV files
-      Process.runSync('powershell', [
-        '-c',
-        '(New-Object Media.SoundPlayer "$audioFile").PlaySync()'
-      ]);
+      Process.runSync('powershell',
+          ['-c', '(New-Object Media.SoundPlayer "$audioFile").PlaySync()']);
     } catch (e) {
       try {
         // Fallback to Windows Media Player
