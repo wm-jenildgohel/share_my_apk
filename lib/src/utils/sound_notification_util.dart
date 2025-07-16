@@ -26,11 +26,12 @@ class SoundNotificationUtil {
 
   static void _playWindowsBeep() {
     try {
-      Process.runSync('rundll32', ['user32.dll,MessageBeep']);
+      // Short, high-pitched cheerful beep (frequency: 1000Hz, duration: 150ms)
+      Process.runSync('powershell', ['-c', '[console]::beep(1000,150)']);
     } catch (e) {
-      // Fallback to PowerShell beep
+      // Fallback to system message beep (shorter)
       try {
-        Process.runSync('powershell', ['-c', '[console]::beep(800,200)']);
+        Process.runSync('rundll32', ['user32.dll,MessageBeep', '0']);
       } catch (e) {
         // Silent fail
       }
@@ -39,15 +40,23 @@ class SoundNotificationUtil {
 
   static void _playLinuxBeep() {
     try {
-      Process.runSync('pactl', ['play-sample', 'bell']);
+      // Try playing a pleasant notification sound first
+      Process.runSync('pactl', ['play-sample', 'complete']);
     } catch (e) {
       try {
-        Process.runSync('beep', []);
+        // Short beep with higher frequency (1200Hz, 100ms)
+        Process.runSync('beep', ['-f', '1200', '-l', '100']);
       } catch (e) {
         try {
-          Process.runSync('speaker-test', ['-t', 'sine', '-f', '1000', '-l', '1']);
+          // Very short speaker test
+          Process.runSync('speaker-test', ['-t', 'sine', '-f', '1200', '-l', '1', '-s', '1']);
         } catch (e) {
-          // Silent fail
+          // Try simple bell sound
+          try {
+            Process.runSync('tput', ['bel']);
+          } catch (e) {
+            // Silent fail
+          }
         }
       }
     }
@@ -55,12 +64,19 @@ class SoundNotificationUtil {
 
   static void _playMacBeep() {
     try {
-      Process.runSync('afplay', ['/System/Library/Sounds/Ping.aiff']);
+      // Use a pleasant macOS system sound
+      Process.runSync('afplay', ['/System/Library/Sounds/Glass.aiff']);
     } catch (e) {
       try {
-        Process.runSync('osascript', ['-e', 'beep']);
+        // Fallback to Ping sound (shorter than default beep)
+        Process.runSync('afplay', ['/System/Library/Sounds/Ping.aiff']);
       } catch (e) {
-        // Silent fail
+        try {
+          // Use system beep but make it brief
+          Process.runSync('osascript', ['-e', 'beep 1']);
+        } catch (e) {
+          // Silent fail
+        }
       }
     }
   }
