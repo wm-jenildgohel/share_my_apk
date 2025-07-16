@@ -3,79 +3,90 @@ import 'dart:io';
 class SoundNotificationUtil {
   static void playNotificationSound() {
     try {
-      _playAsciiBell();
-      _playSystemBeep();
+      // Skip ASCII bell as it can be harsh
+      _playPleasantSound();
     } catch (e) {
       // Silently fail if sound cannot be played
     }
   }
 
-  static void _playAsciiBell() {
-    stdout.write('\x07');
-  }
-
-  static void _playSystemBeep() {
+  static void _playPleasantSound() {
     if (Platform.isWindows) {
-      _playWindowsBeep();
+      _playWindowsSound();
     } else if (Platform.isLinux) {
-      _playLinuxBeep();
+      _playLinuxSound();
     } else if (Platform.isMacOS) {
-      _playMacBeep();
+      _playMacSound();
     }
   }
 
-  static void _playWindowsBeep() {
+  static void _playWindowsSound() {
     try {
-      // Short, high-pitched cheerful beep (frequency: 1000Hz, duration: 150ms)
-      Process.runSync('powershell', ['-c', '[console]::beep(1000,150)']);
+      // Play Windows notification sound (pleasant ding)
+      Process.runSync('rundll32', ['user32.dll,MessageBeep', '64']);
     } catch (e) {
-      // Fallback to system message beep (shorter)
       try {
-        Process.runSync('rundll32', ['user32.dll,MessageBeep', '0']);
+        // Play system notification sound
+        Process.runSync('powershell', ['-c', '(New-Object Media.SoundPlayer "C:\\Windows\\Media\\notify.wav").PlaySync()']);
       } catch (e) {
-        // Silent fail
+        try {
+          // Gentle, higher-pitched beep as last resort
+          Process.runSync('powershell', ['-c', '[console]::beep(800,100)']);
+        } catch (e) {
+          // Silent fail
+        }
       }
     }
   }
 
-  static void _playLinuxBeep() {
+  static void _playLinuxSound() {
     try {
-      // Try playing a pleasant notification sound first
-      Process.runSync('pactl', ['play-sample', 'complete']);
+      // Try playing notification sound from freedesktop sound theme
+      Process.runSync('pactl', ['play-sample', 'message-new-instant']);
     } catch (e) {
       try {
-        // Short beep with higher frequency (1200Hz, 100ms)
-        Process.runSync('beep', ['-f', '1200', '-l', '100']);
+        // Try playing bell sound
+        Process.runSync('pactl', ['play-sample', 'bell-terminal']);
       } catch (e) {
         try {
-          // Very short speaker test
-          Process.runSync('speaker-test', ['-t', 'sine', '-f', '1200', '-l', '1', '-s', '1']);
+          // Try system notification sound
+          Process.runSync('canberra-gtk-play', ['-i', 'message-new-instant']);
         } catch (e) {
-          // Try simple bell sound
           try {
-            Process.runSync('tput', ['bel']);
+            // Use aplay with a notification sound if available
+            Process.runSync('aplay', ['/usr/share/sounds/alsa/Front_Left.wav']);
           } catch (e) {
-            // Silent fail
+            try {
+              // Very gentle beep as last resort
+              Process.runSync('beep', ['-f', '600', '-l', '80']);
+            } catch (e) {
+              // Silent fail
+            }
           }
         }
       }
     }
   }
 
-  static void _playMacBeep() {
+  static void _playMacSound() {
     try {
-      // Use a pleasant macOS system sound
-      Process.runSync('afplay', ['/System/Library/Sounds/Glass.aiff']);
+      // Use pleasant macOS notification sounds
+      Process.runSync('afplay', ['/System/Library/Sounds/Blow.aiff']);
     } catch (e) {
       try {
-        // Fallback to Ping sound (shorter than default beep)
-        Process.runSync('afplay', ['/System/Library/Sounds/Ping.aiff']);
+        // Fallback to Bottle sound (very pleasant)
+        Process.runSync('afplay', ['/System/Library/Sounds/Bottle.aiff']);
       } catch (e) {
         try {
-          // Use system beep but make it brief
-          Process.runSync('osascript', ['-e', 'beep 1']);
+          // Fallback to Glass sound
+          Process.runSync('afplay', ['/System/Library/Sounds/Glass.aiff']);
         } catch (e) {
-          // Silent fail
+          try {
+            // Fallback to Pop sound
+            Process.runSync('afplay', ['/System/Library/Sounds/Pop.aiff']);
+          } catch (e) {
+            // Silent fail - no harsh beeps as fallback
+          }
         }
       }
     }
