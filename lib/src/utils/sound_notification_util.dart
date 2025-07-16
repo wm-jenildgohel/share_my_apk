@@ -1,37 +1,67 @@
 import 'dart:io';
+import 'package:path/path.dart' as path;
 
 class SoundNotificationUtil {
   static void playNotificationSound() {
     try {
-      // Skip ASCII bell as it can be harsh
-      _playPleasantSound();
+      _playNotificationFile();
     } catch (e) {
       // Silently fail if sound cannot be played
     }
   }
 
-  static void _playPleasantSound() {
+  static void _playNotificationFile() {
+    final audioFile = _getNotificationSoundPath();
+    
+    if (!File(audioFile).existsSync()) {
+      return; // Silent fail if file doesn't exist
+    }
+
     if (Platform.isWindows) {
-      _playWindowsSound();
+      _playWindowsAudio(audioFile);
     } else if (Platform.isLinux) {
-      _playLinuxSound();
+      _playLinuxAudio(audioFile);
     } else if (Platform.isMacOS) {
-      _playMacSound();
+      _playMacAudio(audioFile);
     }
   }
 
-  static void _playWindowsSound() {
+  static String _getNotificationSoundPath() {
+    // Get the directory where the executable is running
+    final executableDir = path.dirname(Platform.resolvedExecutable);
+    
+    // Try different possible locations for the sound file
+    final possiblePaths = [
+      path.join(executableDir, 'assets', 'sounds', 'notification.wav'),
+      path.join(Directory.current.path, 'assets', 'sounds', 'notification.wav'),
+      path.join(executableDir, '..', 'assets', 'sounds', 'notification.wav'),
+    ];
+    
+    for (final soundPath in possiblePaths) {
+      if (File(soundPath).existsSync()) {
+        return soundPath;
+      }
+    }
+    
+    // Default path (may not exist)
+    return possiblePaths.first;
+  }
+
+  static void _playWindowsAudio(String audioFile) {
     try {
-      // Play Windows notification sound (pleasant ding)
-      Process.runSync('rundll32', ['user32.dll,MessageBeep', '64']);
+      // Use PowerShell SoundPlayer for WAV files
+      Process.runSync('powershell', [
+        '-c',
+        '(New-Object Media.SoundPlayer "$audioFile").PlaySync()'
+      ]);
     } catch (e) {
       try {
-        // Play system notification sound
-        Process.runSync('powershell', ['-c', '(New-Object Media.SoundPlayer "C:\\Windows\\Media\\notify.wav").PlaySync()']);
+        // Fallback to Windows Media Player
+        Process.runSync('wmplayer', [audioFile, '/close']);
       } catch (e) {
         try {
-          // Gentle, higher-pitched beep as last resort
-          Process.runSync('powershell', ['-c', '[console]::beep(800,100)']);
+          // Last resort: pleasant Windows notification
+          Process.runSync('rundll32', ['user32.dll,MessageBeep', '64']);
         } catch (e) {
           // Silent fail
         }
@@ -39,54 +69,44 @@ class SoundNotificationUtil {
     }
   }
 
-  static void _playLinuxSound() {
+  static void _playLinuxAudio(String audioFile) {
     try {
-      // Try playing notification sound from freedesktop sound theme
-      Process.runSync('pactl', ['play-sample', 'message-new-instant']);
+      // Try aplay (ALSA audio player)
+      Process.runSync('aplay', [audioFile]);
     } catch (e) {
       try {
-        // Try playing bell sound
-        Process.runSync('pactl', ['play-sample', 'bell-terminal']);
+        // Try paplay (PulseAudio player)
+        Process.runSync('paplay', [audioFile]);
       } catch (e) {
         try {
-          // Try system notification sound
-          Process.runSync('canberra-gtk-play', ['-i', 'message-new-instant']);
+          // Try ffplay (if available)
+          Process.runSync('ffplay', ['-nodisp', '-autoexit', audioFile]);
         } catch (e) {
           try {
-            // Use aplay with a notification sound if available
-            Process.runSync('aplay', ['/usr/share/sounds/alsa/Front_Left.wav']);
+            // Try mpg123 or similar
+            Process.runSync('mpg123', ['-q', audioFile]);
           } catch (e) {
-            try {
-              // Very gentle beep as last resort
-              Process.runSync('beep', ['-f', '600', '-l', '80']);
-            } catch (e) {
-              // Silent fail
-            }
+            // Silent fail
           }
         }
       }
     }
   }
 
-  static void _playMacSound() {
+  static void _playMacAudio(String audioFile) {
     try {
-      // Use pleasant macOS notification sounds
-      Process.runSync('afplay', ['/System/Library/Sounds/Blow.aiff']);
+      // Use afplay (built-in macOS audio player)
+      Process.runSync('afplay', [audioFile]);
     } catch (e) {
       try {
-        // Fallback to Bottle sound (very pleasant)
-        Process.runSync('afplay', ['/System/Library/Sounds/Bottle.aiff']);
+        // Fallback to QuickTime Player
+        Process.runSync('open', ['-a', 'QuickTime Player', audioFile]);
       } catch (e) {
         try {
-          // Fallback to Glass sound
+          // Fallback to pleasant system sound
           Process.runSync('afplay', ['/System/Library/Sounds/Glass.aiff']);
         } catch (e) {
-          try {
-            // Fallback to Pop sound
-            Process.runSync('afplay', ['/System/Library/Sounds/Pop.aiff']);
-          } catch (e) {
-            // Silent fail - no harsh beeps as fallback
-          }
+          // Silent fail
         }
       }
     }
