@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:process_run/shell.dart';
-import 'package:yaml/yaml.dart';
 import 'package:share_my_apk/src/utils/console_logger.dart';
 
 class FlutterBuildService {
@@ -232,12 +231,21 @@ class FlutterBuildService {
 
     try {
       final content = pubspecFile.readAsStringSync();
-      final yaml = loadYaml(content);
+      final lines = content.split('\n');
+      
+      String name = 'app';
+      String version = '1.0.0';
+      
+      for (final line in lines) {
+        final trimmed = line.trim();
+        if (trimmed.startsWith('name:')) {
+          name = trimmed.substring(5).trim().replaceAll(RegExp(r'["\x27]'), '');
+        } else if (trimmed.startsWith('version:')) {
+          version = trimmed.substring(8).trim().replaceAll(RegExp(r'["\x27]'), '');
+        }
+      }
 
-      return {
-        'name': yaml['name']?.toString() ?? 'app',
-        'version': yaml['version']?.toString() ?? '1.0.0',
-      };
+      return {'name': name, 'version': version};
     } catch (e) {
       _logger?.warning('Error reading pubspec.yaml: $e');
       return {'name': 'app', 'version': '1.0.0'};

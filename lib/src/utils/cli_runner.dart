@@ -126,16 +126,19 @@ class CliRunner {
   void _showConfigurationInfo(CliOptions options) {
     _logger.info('Configuration loaded:');
 
-    final configFile = File('share_my_apk.yaml');
-    final pubspecFile = File('pubspec.yaml');
+    final envConfigFile = File('.shareMyApk');
+    final homeConfigFile = File('${Platform.environment['HOME'] ?? '.'}/.shareMyApk');
+    final hasEnvVars = Platform.environment.containsKey('DIAWI_TOKEN') || Platform.environment.containsKey('GOFILE_TOKEN');
 
-    if (configFile.existsSync()) {
-      _logger.info('   • Source: share_my_apk.yaml');
-    } else if (pubspecFile.existsSync()) {
-      _logger.info('   • Source: pubspec.yaml (legacy)');
+    if (hasEnvVars) {
+      _logger.info('   • Source: Environment variables');
+    } else if (envConfigFile.existsSync()) {
+      _logger.info('   • Source: .shareMyApk (project)');
+    } else if (homeConfigFile.existsSync()) {
+      _logger.info('   • Source: ~/.shareMyApk (global)');
     } else {
       _logger.info('   • Source: CLI arguments + defaults');
-      _logger.info('   Run --init to create a config file');
+      _logger.info('   Run --init to create simple config file');
     }
 
     _logger.info('   • Project: ${options.path ?? "."}');
