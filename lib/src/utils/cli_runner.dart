@@ -67,9 +67,11 @@ class CliRunner {
           }
         } else {
           token = options.gofileToken;
-          _logger.info('Using Gofile.io (no size limits, public access)');
+          _logger.info('Using Gofile.io (no size limits, requires token)');
           if (token == null) {
-            _logger.info('Running without Gofile token (anonymous upload)');
+            _logger.warning(
+              'No Gofile token found. Get one at: https://gofile.io/api',
+            );
           }
         }
       }
@@ -82,7 +84,7 @@ class CliRunner {
       if (token != null) {
         _logger.info('   • Authentication: Token provided');
       } else {
-        _logger.info('   • Authentication: Anonymous upload');
+        _logger.info('   • Authentication: Missing token (will fail)');
       }
 
       final downloadLink = await uploader.upload(apkPath);

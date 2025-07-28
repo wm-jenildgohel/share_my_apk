@@ -265,7 +265,7 @@ PROVIDER=gofile
 # Get Diawi token: https://dashboard.diawi.com/profile/api
 # DIAWI_TOKEN=your_diawi_token_here
 
-# Get Gofile token (optional): https://gofile.io/api  
+# Get Gofile token (required): https://gofile.io/api  
 # GOFILE_TOKEN=your_gofile_token_here
 
 # Build Settings
@@ -284,7 +284,7 @@ RELEASE=true
     logger.info('3. Pass tokens via command line:');
     logger.info('   share_my_apk --diawi-token YOUR_TOKEN');
     logger.info('');
-    logger.info('Quick start (no setup needed):');
-    logger.info('   share_my_apk  # Uses Gofile, no token required!');
+    logger.info('Quick start:');
+    logger.info('   share_my_apk --gofile-token YOUR_TOKEN');
   }
 }

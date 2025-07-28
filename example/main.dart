@@ -43,8 +43,8 @@ Future<void> _basicExample() async {
 
     print('APK built: $apkPath');
 
-    // Upload to Gofile (no token required)
-    final uploader = UploadServiceFactory.create('gofile');
+    // Upload to Gofile (requires API token)
+    final uploader = UploadServiceFactory.create('gofile', token: 'your_gofile_token');
     final downloadLink = await uploader.upload(apkPath);
 
     print('Download: $downloadLink');
@@ -129,9 +129,9 @@ Future<void> _multiProviderExample() async {
   print('=' * 50);
 
   try {
-    // Strategy 1: Use Gofile for large files (no size limit)
+    // Strategy 1: Use Gofile for large files (no size limit, requires token)
     print('Strategy 1: Gofile.io (unlimited size)');
-    final gofileUploader = UploadServiceFactory.create('gofile');
+    final gofileUploader = UploadServiceFactory.create('gofile', token: 'your_gofile_token');
     print('   Gofile uploader created: ${gofileUploader.runtimeType}');
 
     // Strategy 2: Use Diawi for team sharing (requires token)

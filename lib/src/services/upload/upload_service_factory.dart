@@ -14,6 +14,9 @@ class UploadServiceFactory {
 
     switch (normalizedProvider) {
       case 'gofile':
+        if (token == null || token.isEmpty) {
+          throw ArgumentError('Gofile provider requires an API token.');
+        }
         return GofileUploadService(apiToken: token);
       case 'diawi':
         if (token == null || token.isEmpty) {

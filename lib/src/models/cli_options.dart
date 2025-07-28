@@ -20,7 +20,7 @@
 class CliOptions {
   /// API token for upload providers.
   ///
-  /// Required for Diawi uploads, optional for Gofile.io.
+  /// Required for both Diawi and Gofile.io uploads.
   /// Get your Diawi token from: https://dashboard.diawi.com/profile/api
   final String? token;
 
@@ -47,7 +47,7 @@ class CliOptions {
   ///
   /// Supported providers:
   /// - `'diawi'`: Upload to Diawi service (requires token)
-  /// - `'gofile'`: Upload to Gofile.io service (no token required)
+  /// - `'gofile'`: Upload to Gofile.io service (requires API token)
   ///
   /// The tool automatically switches from Diawi to Gofile.io if the APK
   /// size exceeds 70MB and Diawi is selected.

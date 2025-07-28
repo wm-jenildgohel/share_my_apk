@@ -21,7 +21,7 @@ class MessageUtil {
     print('• Run "share_my_apk --init" to create a config file');
     print('• For Diawi: Get token at https://dashboard.diawi.com/profile/api');
     print('• Use "share_my_apk --help" for all available options');
-    print('• Try "share_my_apk --provider gofile" (no token required)');
+    print('• For Gofile: Get token at https://gofile.io/api');
     print('-----------------------------\n');
   }
 
