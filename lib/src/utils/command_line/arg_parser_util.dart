@@ -1,10 +1,9 @@
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:logging/logging.dart';
 import 'package:share_my_apk/src/models/cli_options.dart';
 import 'package:share_my_apk/src/services/config_service.dart';
-import 'package:share_my_apk/src/utils/command_line/help_util.dart';
-import 'package:share_my_apk/src/utils/command_line/init_util.dart';
 
 /// A utility class for parsing command-line arguments.
 /// A utility class for parsing command-line arguments.
@@ -110,12 +109,12 @@ class ArgParserUtil {
     final argResults = _parser.parse(args);
 
     if (argResults[_help] as bool) {
-      HelpUtil.printHelp(_parser.usage);
+      _printHelp(_parser.usage);
       exit(0);
     }
 
     if (argResults[_init] as bool) {
-      InitUtil.generateConfigFile();
+      _generateConfigFile();
       exit(0);
     }
 
@@ -215,5 +214,105 @@ class ArgParserUtil {
       verbose: verbose,
       sound: sound,
     );
+  }
+
+  static void _printHelp(String usage) {
+    final logger = Logger('HelpUtil');
+    logger.info('''
+NAME
+      share_my_apk - Your friendly neighborhood APK sharer.
+
+SYNOPSIS
+      share_my_apk [options]
+
+DESCRIPTION
+      Why bother with the drag-and-drop dance when you can just use this tool?
+      It builds and shares your Flutter APKs, giving you more time to ponder the important questions in life, like "why is it called a build when it's already built?".
+
+OPTIONS
+$usage
+
+CONFIGURATION
+      Set it and forget it! Use a share_my_apk.yaml file in your project's root.
+      To get started, just run:
+            share_my_apk --init
+
+JOKE OF THE DAY
+      Why do programmers prefer dark mode? 
+      Because light attracts bugs!
+''');
+  }
+
+  static void _generateConfigFile() {
+    final logger = Logger('InitUtil');
+    logger.info('Initializing Share My APK configuration...');
+
+    final configFile = File('share_my_apk.yaml');
+    if (configFile.existsSync()) {
+      logger.warning('Configuration file already exists: share_my_apk.yaml');
+      logger.info('Edit the existing file or delete it to regenerate');
+      return;
+    }
+
+    configFile.writeAsStringSync('''
+# Share My APK Configuration File
+# This file contains default values for the command-line options.
+# Uncomment and modify values as needed.
+
+# PROVIDER SETTINGS
+# Choose your upload provider (diawi or gofile)
+# • Diawi: Great for team sharing, requires token, 70MB limit, links expire in 30 days
+# • Gofile: No size limits, no token required, permanent public links
+provider: gofile
+
+# API TOKENS
+# Diawi token (required for diawi provider): https://dashboard.diawi.com/profile/api
+# diawi_token: your_diawi_token_here
+
+# Gofile token (optional, enables private uploads): https://gofile.io/api
+# gofile_token: your_gofile_token_here
+
+# BUILD SETTINGS
+# Path to your Flutter project (default: current directory)
+path: .
+
+# Build mode (release = optimized APK, debug = development APK)
+release: true
+
+# FILE ORGANIZATION
+# Custom name for the APK file (without .apk extension)
+# Example: "MyApp_v1.0" -> "MyApp_v1.0_2025_01_15_14_30_45.apk"
+# name: MyApp_Production
+
+# Environment folder for organizing builds (dev, staging, prod, etc.)
+# Creates: output-dir/environment/your-apk.apk
+# environment: prod
+
+# Output directory for the built APK (default: Flutter's build/app/outputs/apk)
+# output-dir: builds/releases
+
+# BUILD PIPELINE
+# Run flutter clean before building (recommended: true)
+clean: true
+
+# Run flutter pub get before building (recommended: true)
+pub-get: true
+
+# Generate localizations if lib/l10n exists (recommended: true)
+gen-l10n: true
+''');
+
+    logger.info('Configuration file created: share_my_apk.yaml');
+    logger.info('');
+    logger.info('Next Steps:');
+    logger.info('   1. Edit share_my_apk.yaml to customize your settings');
+    logger.info(
+      '   2. For Diawi: Add your token from https://dashboard.diawi.com/profile/api',
+    );
+    logger.info('   3. Run "share_my_apk" to build and upload your APK');
+    logger.info('');
+    logger.info('Quick Start:');
+    logger.info('   • Gofile (no setup): share_my_apk');
+    logger.info('   • Diawi: share_my_apk --diawi-token YOUR_TOKEN');
   }
 }

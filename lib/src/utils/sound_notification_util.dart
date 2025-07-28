@@ -1,117 +1,50 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:path/path.dart' as path;
-import 'package:share_my_apk/src/utils/notification_sound_data.dart';
 
 class SoundNotificationUtil {
+  /// Plays a cross-platform notification sound with intelligent fallbacks.
+  /// Maintains the same API but uses lightweight system sounds instead of embedded WAV.
   static void playNotificationSound() {
-    try {
-      final soundData = base64Decode(NotificationSoundData.base64Encoded);
-      final tempDir = Directory.systemTemp.createTempSync('share_my_apk_');
-      final tempFile = File(path.join(tempDir.path, 'notification.wav'));
-      tempFile.writeAsBytesSync(soundData);
-      _playNotificationFile(tempFile.path);
-      tempDir.deleteSync(recursive: true);
-    } catch (e) {
-      _playSystemFallback();
-    }
+    _playSystemSound();
   }
 
-  static void _playNotificationFile(String audioFile) {
-    if (Platform.isWindows) {
-      _playWindowsAudio(audioFile);
-    } else if (Platform.isLinux) {
-      _playLinuxAudio(audioFile);
-    } else if (Platform.isMacOS) {
-      _playMacAudio(audioFile);
-    }
-  }
-
-  static void _playWindowsAudio(String audioFile) {
-    try {
-      // Use PowerShell SoundPlayer for WAV files
-      Process.runSync('powershell',
-          ['-c', '(New-Object Media.SoundPlayer "$audioFile").PlaySync()']);
-    } catch (e) {
-      try {
-        // Fallback to Windows Media Player
-        Process.runSync('wmplayer', [audioFile, '/close']);
-      } catch (e) {
-        try {
-          // Last resort: pleasant Windows notification
-          Process.runSync('rundll32', ['user32.dll,MessageBeep', '64']);
-        } catch (e) {
-          // Silent fail
-        }
-      }
-    }
-  }
-
-  static void _playLinuxAudio(String audioFile) {
-    try {
-      // Try aplay (ALSA audio player)
-      Process.runSync('aplay', [audioFile]);
-    } catch (e) {
-      try {
-        // Try paplay (PulseAudio player)
-        Process.runSync('paplay', [audioFile]);
-      } catch (e) {
-        try {
-          // Try ffplay (if available)
-          Process.runSync('ffplay', ['-nodisp', '-autoexit', audioFile]);
-        } catch (e) {
-          try {
-            // Try mpg123 or similar
-            Process.runSync('mpg123', ['-q', audioFile]);
-          } catch (e) {
-            // Silent fail
-          }
-        }
-      }
-    }
-  }
-
-  static void _playMacAudio(String audioFile) {
-    try {
-      // Use afplay (built-in macOS audio player)
-      Process.runSync('afplay', [audioFile]);
-    } catch (e) {
-      try {
-        // Fallback to QuickTime Player
-        Process.runSync('open', ['-a', 'QuickTime Player', audioFile]);
-      } catch (e) {
-        try {
-          // Fallback to pleasant system sound
-          Process.runSync('afplay', ['/System/Library/Sounds/Glass.aiff']);
-        } catch (e) {
-          // Silent fail
-        }
-      }
-    }
-  }
-
-  static void _playSystemFallback() {
+  static void _playSystemSound() {
     try {
       if (Platform.isWindows) {
-        // Pleasant Windows notification sound
-        Process.runSync('rundll32', ['user32.dll,MessageBeep', '64']);
+        _playWindowsSound();
       } else if (Platform.isLinux) {
-        // Try Linux notification sounds
-        try {
-          Process.runSync('pactl', ['play-sample', 'message-new-instant']);
-        } catch (e) {
-          try {
-            Process.runSync('canberra-gtk-play', ['-i', 'complete']);
-          } catch (e) {
-            // Silent fail
-          }
-        }
+        _playLinuxSound();
       } else if (Platform.isMacOS) {
-        // Pleasant macOS sound
-        Process.runSync('afplay', ['/System/Library/Sounds/Glass.aiff']);
+        _playMacSound();
       }
     } catch (e) {
-      // Silent fail
+      // Silent fail - same behavior as before
     }
+  }
+
+  static void _playWindowsSound() {
+    // Try pleasant notification sound first, then fallback
+    Process.run('rundll32', ['user32.dll,MessageBeep', '0x30']).catchError((_) {
+      // Fallback to default system sound
+      return Process.run('rundll32', ['user32.dll,MessageBeep', '0']);
+    });
+  }
+
+  static void _playLinuxSound() {
+    // Try modern notification system first
+    Process.run('pactl', ['play-sample', 'complete']).catchError((_) {
+      // Fallback to alternative notification
+      return Process.run('canberra-gtk-play', ['-i', 'complete']).catchError((_) {
+        // Last resort - try system bell
+        return Process.run('pactl', ['play-sample', 'bell']);
+      });
+    });
+  }
+
+  static void _playMacSound() {
+    // Use built-in pleasant system sound
+    Process.run('afplay', ['/System/Library/Sounds/Glass.aiff']).catchError((_) {
+      // Fallback to alternative system sound
+      return Process.run('afplay', ['/System/Library/Sounds/Ping.aiff']);
+    });
   }
 }

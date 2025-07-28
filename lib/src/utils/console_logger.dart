@@ -1,4 +1,3 @@
-import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 
 class ConsoleLogger {
@@ -41,7 +40,7 @@ class ConsoleLogger {
     Logger.root.level = Level.ALL;
     Logger.root.onRecord.listen((record) {
       final prefix = _getPrefixForLevel(record.level);
-      final time = DateFormat('HH:mm:ss').format(record.time);
+      final time = '${record.time.hour.toString().padLeft(2, '0')}:${record.time.minute.toString().padLeft(2, '0')}:${record.time.second.toString().padLeft(2, '0')}';
 
       // Using print here is acceptable for CLI logging output
       // ignore: avoid_print

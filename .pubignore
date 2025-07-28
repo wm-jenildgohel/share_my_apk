@@ -1,0 +1,12 @@
+# Development tools - exclude from package distribution
+tool/
+*.md
+!README.md
+build/
+.dart_tool/
+.packages
+.pub/
+
+# Keep only essential files for the package
+# Main functionality: bin/, lib/, pubspec.yaml, README.md, LICENSE
+# Test files are automatically excluded by pub publish

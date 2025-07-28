@@ -53,7 +53,6 @@
 /// - **[UploadServiceFactory]**: Creates upload service instances for different providers
 /// - **[DiawiUploadService]**: Upload to Diawi with polling and timeout handling
 /// - **[GofileUploadService]**: Upload to Gofile.io with retry logic
-/// - **[ApkOrganizerService]**: Smart file organization and naming
 /// - **[ConfigService]**: YAML configuration management
 /// - **[ArgParserUtil]**: Command-line argument parsing
 ///
@@ -95,8 +94,6 @@
 library;
 
 // Build Services
-export 'package:share_my_apk/src/services/build/apk_organizer_service.dart';
-export 'package:share_my_apk/src/services/build/apk_parser_service.dart';
 export 'package:share_my_apk/src/services/build/flutter_build_service.dart';
 
 // Upload Services
@@ -107,8 +104,6 @@ export 'package:share_my_apk/src/services/upload/upload_service_factory.dart';
 
 // Command-Line Utilities
 export 'package:share_my_apk/src/utils/command_line/arg_parser_util.dart';
-export 'package:share_my_apk/src/utils/command_line/help_util.dart';
-export 'package:share_my_apk/src/utils/command_line/init_util.dart';
 
 // Utility Classes
 export 'package:share_my_apk/src/utils/retry_util.dart';

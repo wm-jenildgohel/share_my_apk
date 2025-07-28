@@ -1,6 +1,6 @@
 name: share_my_apk
 description: "CLI tool for building and uploading Android APKs."
-version: 1.1.0-beta
+version: 1.2.0
 
 # Package metadata for pub.dev
 homepage: https://github.com/wm-jenildgohel/share_my_apk
@@ -28,9 +28,7 @@ environment:
 dependencies:
   args: ^2.7.0
   http: ^1.4.0
-  intl: ^0.20.2
   logging: ^1.3.0
-  meta: ^1.15.0
   path: ^1.9.1
   process_run: ^1.2.4
   yaml: ^3.1.3

@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:share_my_apk/src/services/upload/upload_service.dart';
 import 'package:share_my_apk/src/utils/retry_util.dart';
 import 'package:logging/logging.dart';
-import 'package:meta/meta.dart';
 
 /// An [UploadService] for uploading APKs to Gofile.io.
 class GofileUploadService implements UploadService {
@@ -15,7 +14,6 @@ class GofileUploadService implements UploadService {
   /// Creates a new [GofileUploadService].
   GofileUploadService({this.apiToken});
 
-  @visibleForTesting
   Future<String> getServer() async {
     final response = await http.get(Uri.parse('https://api.gofile.io/servers'));
     if (response.statusCode == 200) {
