@@ -47,20 +47,60 @@ class ConfigService {
   static Map<String, dynamic> _loadFromEnvironment() {
     final config = <String, dynamic>{};
     
-    // Load common environment variables
+    // Load environment variables
     final env = Platform.environment;
     
+    // API Tokens
     if (env.containsKey('DIAWI_TOKEN')) {
       config['diawi_token'] = env['DIAWI_TOKEN'];
     }
     if (env.containsKey('GOFILE_TOKEN')) {
       config['gofile_token'] = env['GOFILE_TOKEN'];
     }
+    
+    // Provider and build settings
+    if (env.containsKey('PROVIDER')) {
+      config['provider'] = env['PROVIDER'];
+    }
     if (env.containsKey('SHARE_MY_APK_PROVIDER')) {
       config['provider'] = env['SHARE_MY_APK_PROVIDER'];
     }
+    if (env.containsKey('RELEASE')) {
+      config['release'] = env['RELEASE'] == 'true';
+    }
     if (env.containsKey('SHARE_MY_APK_RELEASE')) {
       config['release'] = env['SHARE_MY_APK_RELEASE'] == 'true';
+    }
+    
+    // File organization
+    if (env.containsKey('NAME')) {
+      config['name'] = env['NAME'];
+    }
+    if (env.containsKey('ENVIRONMENT')) {
+      config['environment'] = env['ENVIRONMENT'];
+    }
+    if (env.containsKey('OUTPUT_DIR')) {
+      config['output-dir'] = env['OUTPUT_DIR'];
+    }
+    if (env.containsKey('PATH')) {
+      config['path'] = env['PATH'];
+    }
+    
+    // Build pipeline options
+    if (env.containsKey('CLEAN')) {
+      config['clean'] = env['CLEAN'] == 'true';
+    }
+    if (env.containsKey('PUB_GET')) {
+      config['pub-get'] = env['PUB_GET'] == 'true';
+    }
+    if (env.containsKey('GEN_L10N')) {
+      config['gen-l10n'] = env['GEN_L10N'] == 'true';
+    }
+    if (env.containsKey('VERBOSE')) {
+      config['verbose'] = env['VERBOSE'] == 'true';
+    }
+    if (env.containsKey('SOUND')) {
+      config['sound'] = env['SOUND'] == 'true';
     }
     
     return config;

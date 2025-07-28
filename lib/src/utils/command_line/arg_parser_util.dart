@@ -10,7 +10,6 @@ import 'package:share_my_apk/src/services/config_service.dart';
 class ArgParserUtil {
   late final ArgParser _parser;
   static const _help = 'help';
-  static const _init = 'init';
   static const _diawiToken = 'diawi-token';
   static const _gofileToken = 'gofile-token';
   static const _path = 'path';
@@ -32,11 +31,6 @@ class ArgParserUtil {
       _help,
       abbr: 'h',
       help: 'Show this help message.',
-      negatable: false,
-    );
-    _parser.addFlag(
-      _init,
-      help: 'Generate a simple .shareMyApk configuration file.',
       negatable: false,
     );
     _parser.addOption(
@@ -106,15 +100,16 @@ class ArgParserUtil {
   ///
   /// Throws an [ArgumentError] if the token is not provided when required.
   CliOptions parse(List<String> args) {
+    // Handle 'init' command first (before parsing flags)
+    if (args.isNotEmpty && args[0] == 'init') {
+      _generateConfigFile();
+      exit(0);
+    }
+
     final argResults = _parser.parse(args);
 
     if (argResults[_help] as bool) {
       _printHelp(_parser.usage);
-      exit(0);
-    }
-
-    if (argResults[_init] as bool) {
-      _generateConfigFile();
       exit(0);
     }
 
@@ -235,8 +230,11 @@ $usage
 CONFIGURATION
       Super simple! Three ways to configure:
       1. Environment variables: export DIAWI_TOKEN="your_token"
-      2. Config file: Run 'share_my_apk --init' to create .shareMyApk
+      2. Config file: Run 'share_my_apk init' to create .shareMyApk
       3. Command line: share_my_apk --diawi-token YOUR_TOKEN
+
+COMMANDS
+      init                   Create comprehensive .shareMyApk config file
 
 JOKE OF THE DAY
       Why do programmers prefer dark mode? 
@@ -255,36 +253,103 @@ JOKE OF THE DAY
       return;
     }
 
-    configFile.writeAsStringSync('''# Share My APK Simple Configuration
+    configFile.writeAsStringSync('''# ================================================
+# Share My APK Configuration File
+# ================================================
 # Edit values below or use environment variables (higher priority)
+# Remove '#' to uncomment and activate settings
 
-# Upload Provider (diawi or gofile)
+# ================================================
+# UPLOAD PROVIDER (Required)
+# ================================================
+# Choose your upload provider: diawi or gofile
+# • Diawi: Great for team sharing, 70MB limit, links expire in 30 days
+# • Gofile: No size limits, permanent public links
 PROVIDER=gofile
 
-# API Tokens
-# Get Diawi token: https://dashboard.diawi.com/profile/api
+# ================================================  
+# API TOKENS (Required for uploads)
+# ================================================
+# Both providers require API tokens for uploads
+
+# Diawi API Token
+# Get yours at: https://dashboard.diawi.com/profile/api
 # DIAWI_TOKEN=your_diawi_token_here
 
-# Get Gofile token (required): https://gofile.io/api  
+# Gofile API Token  
+# Get yours at: https://gofile.io/api
 # GOFILE_TOKEN=your_gofile_token_here
 
-# Build Settings
+# ================================================
+# BUILD CONFIGURATION
+# ================================================
+# Build mode: true for release (optimized), false for debug
 RELEASE=true
+
+# Flutter project path (default: current directory)
+# PATH=.
+
+# ================================================
+# FILE ORGANIZATION
+# ================================================
+# Custom APK name (without .apk extension)
+# Example: "MyApp_v2.0" becomes "MyApp_v2.0_2025_01_28_12_30_45.apk"
+# NAME=MyApp_Production
+
+# Environment folder for organizing builds
+# Creates: output-dir/environment/your-apk.apk
+# Examples: dev, staging, prod, beta
+# ENVIRONMENT=prod
+
+# Custom output directory for APKs
+# Default: Flutter's build/app/outputs/apk/release
+# OUTPUT_DIR=builds/releases
+
+# ================================================
+# BUILD PIPELINE OPTIONS
+# ================================================
+# Run flutter clean before building (recommended)
+# CLEAN=true
+
+# Run flutter pub get before building (recommended)  
+# PUB_GET=true
+
+# Generate localizations if l10n.yaml exists (recommended)
+# GEN_L10N=true
+
+# Show verbose build output
+# VERBOSE=false
+
+# Play sound notification after successful upload
+# SOUND=true
+
+# ================================================
+# USAGE EXAMPLES
+# ================================================
+# Environment variables (highest priority):
+#   export DIAWI_TOKEN="your_token"
+#   export GOFILE_TOKEN="your_token"
+#   share_my_apk
+#
+# Command line (overrides this file):
+#   share_my_apk --diawi-token YOUR_TOKEN
+#   share_my_apk --gofile-token YOUR_TOKEN --name MyApp_Beta
+#
+# This config file (edit values above):
+#   share_my_apk
+# ================================================
 ''');
 
     logger.info('Simple configuration created: .shareMyApk');
     logger.info('');
-    logger.info('🚀 Three ways to configure:');
+    logger.info('📝 Comprehensive configuration created with all options!');
     logger.info('');
-    logger.info('1. Edit .shareMyApk file (just created)');
-    logger.info('2. Use environment variables:');
-    logger.info('   export DIAWI_TOKEN="your_token"');
-    logger.info('   export GOFILE_TOKEN="your_token"');
+    logger.info('🎯 Next steps:');
+    logger.info('   1. Edit .shareMyApk and uncomment/set your tokens');
+    logger.info('   2. Or use environment variables for security:');
+    logger.info('      export GOFILE_TOKEN="your_token"');
+    logger.info('   3. Then run: share_my_apk');
     logger.info('');
-    logger.info('3. Pass tokens via command line:');
-    logger.info('   share_my_apk --diawi-token YOUR_TOKEN');
-    logger.info('');
-    logger.info('Quick start:');
-    logger.info('   share_my_apk --gofile-token YOUR_TOKEN');
+    logger.info('💡 All configuration options are documented in the file!');
   }
 }
