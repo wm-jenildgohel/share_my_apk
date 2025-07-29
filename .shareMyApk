@@ -1,0 +1,85 @@
+# ================================================
+# Share My APK Configuration File
+# ================================================
+# Edit values below or use environment variables (higher priority)
+# Remove '#' to uncomment and activate settings
+
+# ================================================
+# UPLOAD PROVIDER (Required)
+# ================================================
+# Choose your upload provider: diawi or gofile
+# • Diawi: Great for team sharing, 70MB limit, links expire in 30 days
+# • Gofile: No size limits, permanent public links
+PROVIDER=gofile
+
+# ================================================  
+# API TOKENS (Required for uploads)
+# ================================================
+# Both providers require API tokens for uploads
+
+# Diawi API Token
+# Get yours at: https://dashboard.diawi.com/profile/api
+# DIAWI_TOKEN=your_diawi_token_here
+
+# Gofile API Token  
+# Get yours at: https://gofile.io/api
+# GOFILE_TOKEN=your_gofile_token_here
+
+# ================================================
+# BUILD CONFIGURATION
+# ================================================
+# Build mode: true for release (optimized), false for debug
+RELEASE=true
+
+# Flutter project path (default: current directory)
+# PATH=.
+
+# ================================================
+# FILE ORGANIZATION
+# ================================================
+# Custom APK name (without .apk extension)
+# Example: "MyApp_v2.0" becomes "MyApp_v2.0_2025_01_28_12_30_45.apk"
+# NAME=MyApp_Production
+
+# Environment folder for organizing builds
+# Creates: output-dir/environment/your-apk.apk
+# Examples: dev, staging, prod, beta
+# ENVIRONMENT=prod
+
+# Custom output directory for APKs
+# Default: Flutter's build/app/outputs/apk/release
+# OUTPUT_DIR=builds/releases
+
+# ================================================
+# BUILD PIPELINE OPTIONS
+# ================================================
+# Run flutter clean before building (recommended)
+# CLEAN=true
+
+# Run flutter pub get before building (recommended)  
+# PUB_GET=true
+
+# Generate localizations if l10n.yaml exists (recommended)
+# GEN_L10N=true
+
+# Show verbose build output
+# VERBOSE=false
+
+# Play sound notification after successful upload
+# SOUND=true
+
+# ================================================
+# USAGE EXAMPLES
+# ================================================
+# Environment variables (highest priority):
+#   export DIAWI_TOKEN="your_token"
+#   export GOFILE_TOKEN="your_token"
+#   share_my_apk
+#
+# Command line (overrides this file):
+#   share_my_apk --diawi-token YOUR_TOKEN
+#   share_my_apk --gofile-token YOUR_TOKEN --name MyApp_Beta
+#
+# This config file (edit values above):
+#   share_my_apk
+# ================================================
