@@ -1,38 +1,37 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import 'package:share_my_apk/src/services/upload/upload_service.dart';
 
 /// A service for uploading APK files to Firebase App Distribution.
 ///
-/// This service handles the upload process to Firebase App Distribution,
-/// including authentication via service account credentials and app management.
+/// This service uses the Firebase CLI as an intermediary for reliable uploads,
+/// as recommended by Google for Firebase App Distribution integration.
+///
+/// ## Prerequisites
+///
+/// 1. **Firebase CLI installed**: `npm install -g firebase-tools`
+/// 2. **Android App ID**: Must be in format `1:PROJECT_NUMBER:android:APP_ID`
+/// 3. **Authentication**: Service account JSON or `firebase login`
 ///
 /// ## Authentication Methods
 ///
-/// 1. **Service Account JSON File**: Specify path to service account JSON file
-/// 2. **Application Default Credentials (ADC)**: Use gcloud CLI authentication
-/// 3. **Environment Variables**: Set GOOGLE_APPLICATION_CREDENTIALS
+/// 1. **Service Account**: Set `GOOGLE_APPLICATION_CREDENTIALS`
+/// 2. **Firebase Login**: Run `firebase login` (for local development)
 ///
 /// ## Usage Example
 ///
 /// ```dart
-/// // Using service account file
 /// final service = FirebaseUploadService(
 ///   projectId: 'my-firebase-project',
-///   appId: '1:123456789:android:abcdef',
+///   appId: '1:123456789:android:abcdef123456',
 ///   serviceAccountPath: '/path/to/service-account.json',
+///   releaseNotes: 'Beta release',
+///   testers: ['tester@example.com'],
+///   groups: ['beta-testers'],
 /// );
 ///
-/// // Using Application Default Credentials
-/// final service = FirebaseUploadService(
-///   projectId: 'my-firebase-project',
-///   appId: '1:123456789:android:abcdef',
-/// );
-///
-/// final shareableLink = await service.upload('/path/to/app.apk');
+/// final result = await service.upload('/path/to/app.apk');
 /// ```
 class FirebaseUploadService implements UploadService {
   static final Logger _logger = Logger('FirebaseUploadService');
@@ -40,7 +39,7 @@ class FirebaseUploadService implements UploadService {
   /// Firebase project ID
   final String projectId;
 
-  /// Firebase app ID (format: 1:123456789:android:abcdef)
+  /// Firebase Android app ID (format: 1:123456789:android:abcdef)
   final String appId;
 
   /// Path to service account JSON file (optional)
@@ -55,9 +54,6 @@ class FirebaseUploadService implements UploadService {
   /// Groups to notify
   final List<String>? groups;
 
-  /// HTTP client for making API requests
-  final http.Client _httpClient;
-
   /// Creates a new Firebase App Distribution upload service.
   FirebaseUploadService({
     required this.projectId,
@@ -66,40 +62,26 @@ class FirebaseUploadService implements UploadService {
     this.releaseNotes,
     this.testers,
     this.groups,
-    http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+  }) {
+    _validateConfiguration();
+  }
 
   @override
   Future<String> upload(String filePath) async {
     _logger.info('Starting Firebase App Distribution upload...');
 
     try {
-      // Validate file exists
-      final file = File(filePath);
-      if (!await file.exists()) {
-        throw FileSystemException('APK file not found', filePath);
-      }
+      // Validate prerequisites
+      await _validatePrerequisites();
+      
+      // Validate file exists and is APK
+      await _validateApkFile(filePath);
 
-      final fileSize = await file.length();
-      _logger.info('Uploading APK: ${path.basename(filePath)} (${_formatBytes(fileSize)})');
+      // Set up authentication
+      await _setupAuthentication();
 
-      // Get access token
-      final accessToken = await _getAccessToken();
-
-      // Upload the APK file
-      final operation = await _uploadApk(filePath, accessToken);
-
-      // Wait for upload completion
-      final release = await _waitForUploadCompletion(operation, accessToken);
-
-      // Distribute to testers/groups if specified
-      if (testers?.isNotEmpty == true || groups?.isNotEmpty == true) {
-        await _distributeRelease(release['name'] as String, accessToken);
-      }
-
-      final downloadUrl = (release['binaryDownloadUri'] as String?) ??
-          (release['displayVersion'] as String?) ??
-          'Firebase App Distribution';
+      // Upload using Firebase CLI
+      final downloadUrl = await _uploadWithFirebaseCli(filePath);
 
       _logger.info('Firebase App Distribution upload completed successfully!');
       return downloadUrl;
@@ -109,255 +91,199 @@ class FirebaseUploadService implements UploadService {
     }
   }
 
-  /// Get OAuth2 access token for Firebase API
-  Future<String> _getAccessToken() async {
-    try {
-      if (serviceAccountPath != null) {
-        return await _getAccessTokenFromServiceAccount();
-      } else {
-        return await _getAccessTokenFromADC();
-      }
-    } catch (e) {
-      throw Exception('Failed to get access token: $e');
-    }
-  }
-
-  /// Get access token using service account JSON file
-  Future<String> _getAccessTokenFromServiceAccount() async {
-    if (serviceAccountPath == null || serviceAccountPath!.isEmpty) {
-      throw ArgumentError('Service account path is null or empty');
+  /// Validate Firebase configuration
+  void _validateConfiguration() {
+    if (projectId.isEmpty) {
+      throw ArgumentError('Firebase project ID cannot be empty');
     }
 
-    final serviceAccountFile = File(serviceAccountPath!);
-    if (!await serviceAccountFile.exists()) {
-      throw FileSystemException('Service account file not found', serviceAccountPath);
-    }
-
-    final serviceAccountJson = await serviceAccountFile.readAsString();
-    final serviceAccount = jsonDecode(serviceAccountJson) as Map<String, dynamic>;
-
-    final privateKey = serviceAccount['private_key'] as String?;
-    final clientEmail = serviceAccount['client_email'] as String?;
-
-    if (privateKey == null || privateKey.isEmpty) {
-      throw ArgumentError('Service account JSON missing or empty private_key field');
-    }
-    if (clientEmail == null || clientEmail.isEmpty) {
-      throw ArgumentError('Service account JSON missing or empty client_email field');
-    }
-
-    // Create JWT for service account authentication
-    final jwt = _createJwt(clientEmail, privateKey);
-
-    // Exchange JWT for access token
-    final response = await _httpClient.post(
-      Uri.parse('https://oauth2.googleapis.com/token'),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {
-        'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        'assertion': jwt,
-      },
-    );
-
-    if (response.statusCode != 200) {
-      throw HttpException('Failed to get access token: ${response.body}');
-    }
-
-    final tokenData = jsonDecode(response.body) as Map<String, dynamic>;
-    final accessToken = tokenData['access_token'] as String?;
-    
-    if (accessToken == null || accessToken.isEmpty) {
-      throw Exception('Received null or empty access token from OAuth2 response');
-    }
-    
-    return accessToken;
-  }
-
-  /// Get access token using Application Default Credentials
-  Future<String> _getAccessTokenFromADC() async {
-    // Try to use gcloud CLI to get access token
-    try {
-      final result = await Process.run('gcloud', [
-        'auth',
-        'application-default',
-        'print-access-token',
-      ]);
-
-      if (result.exitCode == 0) {
-        final token = result.stdout.toString().trim();
-        if (token.isNotEmpty) {
-          return token;
-        }
-      }
-      _logger.warning('gcloud CLI returned empty token or failed with exit code: ${result.exitCode}');
-    } catch (e) {
-      _logger.warning('Failed to get token from gcloud CLI: $e');
-    }
-
-    // Fallback to environment variable
-    final credentialsPath = Platform.environment['GOOGLE_APPLICATION_CREDENTIALS'];
-    if (credentialsPath != null && credentialsPath.isNotEmpty) {
-      try {
-        final tempService = FirebaseUploadService(
-          projectId: projectId,
-          appId: appId,
-          serviceAccountPath: credentialsPath,
-        );
-        return await tempService._getAccessTokenFromServiceAccount();
-      } catch (e) {
-        _logger.warning('Failed to get token from service account file: $e');
-      }
-    }
-
-    throw Exception(
-      'No authentication method available. Please either:\n'
-      '1. Set serviceAccountPath parameter\n'
-      '2. Run "gcloud auth application-default login"\n'
-      '3. Set GOOGLE_APPLICATION_CREDENTIALS environment variable\n'
-      '\nCurrent state:\n'
-      '- Service account path: ${serviceAccountPath ?? "not provided"}\n'
-      '- GOOGLE_APPLICATION_CREDENTIALS: ${credentialsPath ?? "not set"}\n'
-      '- gcloud CLI: not authenticated or not available',
-    );
-  }
-
-  /// Create JWT for service account authentication
-  String _createJwt(String clientEmail, String privateKey) {
-    // Note: In a production implementation, you would use proper RSA signing
-    // For now, this is a simplified version that assumes external JWT creation
-    throw UnimplementedError(
-      'JWT creation requires RSA signing. Please use a service account JSON file '
-      'with gcloud CLI or set GOOGLE_APPLICATION_CREDENTIALS environment variable.',
-    );
-  }
-
-  /// Upload APK file to Firebase App Distribution
-  Future<Map<String, dynamic>> _uploadApk(String filePath, String accessToken) async {
-    final fileName = path.basename(filePath);
-
-    final uri = Uri.parse(
-      'https://firebaseappdistribution.googleapis.com/v1/projects/$projectId/apps/$appId/releases:upload',
-    );
-
-    final request = http.MultipartRequest('POST', uri);
-    request.headers['Authorization'] = 'Bearer $accessToken';
-    request.headers['X-Goog-Upload-File-Name'] = fileName;
-    request.headers['X-Goog-Upload-Protocol'] = 'multipart';
-
-    request.files.add(await http.MultipartFile.fromPath('file', filePath));
-
-    _logger.info('Uploading to Firebase App Distribution...');
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode != 200) {
-      throw HttpException('Upload failed: ${response.body}');
-    }
-
-    final responseData = jsonDecode(response.body) as Map<String, dynamic>;
-    _logger.info('Upload initiated successfully');
-    return responseData;
-  }
-
-  /// Wait for upload operation to complete
-  Future<Map<String, dynamic>> _waitForUploadCompletion(
-    Map<String, dynamic> operation,
-    String accessToken,
-  ) async {
-    final operationName = operation['name'] as String;
-    _logger.info('Waiting for upload to complete...');
-
-    for (int attempt = 0; attempt < 30; attempt++) {
-      await Future<void>.delayed(const Duration(seconds: 2));
-
-      final response = await _httpClient.get(
-        Uri.parse('https://firebaseappdistribution.googleapis.com/v1/$operationName'),
-        headers: {'Authorization': 'Bearer $accessToken'},
+    // Validate Android app ID format
+    final androidAppIdPattern = RegExp(r'^1:\d+:android:[a-f0-9]+$');
+    if (!androidAppIdPattern.hasMatch(appId)) {
+      throw ArgumentError(
+        'Invalid Firebase App ID format. Expected: 1:PROJECT_NUMBER:android:APP_ID\n'
+        'Got: $appId\n'
+        'Note: Firebase App Distribution only supports Android apps, not web apps.\n'
+        'Please use your Android app ID from Firebase Console > Project Settings > General > Your apps',
       );
-
-      if (response.statusCode != 200) {
-        throw HttpException('Failed to check operation status: ${response.body}');
-      }
-
-      final operationData = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (operationData['done'] == true) {
-        if (operationData.containsKey('error')) {
-          throw Exception('Upload failed: ${operationData['error']}');
-        }
-        _logger.info('Upload completed successfully');
-        return operationData['response'] as Map<String, dynamic>;
-      }
-
-      _logger.info('Upload in progress... (attempt ${attempt + 1}/30)');
     }
-
-    throw TimeoutException('Upload timed out after 60 seconds');
   }
 
-  /// Distribute release to testers and groups
-  Future<void> _distributeRelease(String releaseName, String accessToken) async {
-    if (testers?.isEmpty == true && groups?.isEmpty == true) {
-      return;
+  /// Validate prerequisites are installed
+  Future<void> _validatePrerequisites() async {
+    // Check if Firebase CLI is installed
+    try {
+      final result = await Process.run('firebase', ['--version']);
+      if (result.exitCode != 0) {
+        throw Exception('Firebase CLI not working properly');
+      }
+      final version = result.stdout.toString().trim();
+      _logger.info('Found Firebase CLI: $version');
+    } catch (e) {
+      throw Exception(
+        'Firebase CLI is required but not found. Please install it:\n'
+        '1. Install Node.js from https://nodejs.org/\n'
+        '2. Run: npm install -g firebase-tools\n'
+        '3. Verify: firebase --version\n\n'
+        'Error: $e',
+      );
+    }
+  }
+
+  /// Validate APK file
+  Future<void> _validateApkFile(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      throw FileSystemException('APK file not found', filePath);
     }
 
-    _logger.info('Distributing release to testers and groups...');
+    // Check if it's an APK file
+    if (!filePath.toLowerCase().endsWith('.apk')) {
+      throw ArgumentError('File must be an APK file: $filePath');
+    }
 
-    final distributionRequest = <String, dynamic>{};
+    final fileSize = await file.length();
+    final fileSizeMB = (fileSize / 1024 / 1024);
+    _logger.info('Uploading APK: ${path.basename(filePath)} (${fileSizeMB.toStringAsFixed(1)} MB)');
+  }
+
+  /// Set up Firebase authentication
+  Future<void> _setupAuthentication() async {
+    if (serviceAccountPath != null && serviceAccountPath!.isNotEmpty) {
+      // Use service account authentication
+      final serviceAccountFile = File(serviceAccountPath!);
+      if (!await serviceAccountFile.exists()) {
+        throw FileSystemException('Service account file not found', serviceAccountPath);
+      }
+
+      // Set environment variable for Firebase CLI
+      Platform.environment['GOOGLE_APPLICATION_CREDENTIALS'] = serviceAccountPath!;
+      _logger.info('Using service account authentication');
+    } else {
+      // Check if user is logged in to Firebase
+      try {
+        final result = await Process.run('firebase', ['projects:list']);
+        if (result.exitCode != 0) {
+          throw Exception('Not authenticated with Firebase');
+        }
+        _logger.info('Using Firebase login authentication');
+      } catch (e) {
+        throw Exception(
+          'Firebase authentication required. Please either:\n'
+          '1. Set serviceAccountPath parameter\n'
+          '2. Run "firebase login" for interactive authentication\n'
+          '3. Set GOOGLE_APPLICATION_CREDENTIALS environment variable\n\n'
+          'Error: $e',
+        );
+      }
+    }
+  }
+
+  /// Upload APK using Firebase CLI
+  Future<String> _uploadWithFirebaseCli(String filePath) async {
+    final arguments = <String>[
+      'appdistribution:distribute',
+      filePath,
+      '--app',
+      appId,
+    ];
+
+    // Add optional parameters
+    if (releaseNotes != null && releaseNotes!.isNotEmpty) {
+      arguments.addAll(['--release-notes', releaseNotes!]);
+    }
 
     if (testers?.isNotEmpty == true) {
-      distributionRequest['testerEmails'] = testers;
+      arguments.addAll(['--testers', testers!.join(',')]);
     }
 
     if (groups?.isNotEmpty == true) {
-      distributionRequest['groupAliases'] = groups;
+      arguments.addAll(['--groups', groups!.join(',')]);
     }
 
-    if (releaseNotes?.isNotEmpty == true) {
-      distributionRequest['releaseNotes'] = {'text': releaseNotes};
-    }
+    _logger.info('Executing Firebase CLI upload...');
+    _logger.info('Command: firebase ${arguments.join(' ')}');
 
-    final response = await _httpClient.patch(
-      Uri.parse('https://firebaseappdistribution.googleapis.com/v1/$releaseName'),
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(distributionRequest),
+    final result = await Process.run(
+      'firebase',
+      arguments,
+      environment: Platform.environment,
     );
 
-    if (response.statusCode != 200) {
-      _logger.warning('Failed to distribute release: ${response.body}');
-    } else {
-      _logger.info('Release distributed successfully');
+    if (result.exitCode != 0) {
+      final error = result.stderr.toString();
+      final output = result.stdout.toString();
+      
+      _logger.severe('Firebase CLI error output: $error');
+      _logger.severe('Firebase CLI stdout: $output');
+
+      // Provide helpful error messages for common issues
+      if (error.contains('not found') || error.contains('does not exist')) {
+        throw Exception(
+          'Firebase app not found. Please verify:\n'
+          '1. App ID is correct: $appId\n'
+          '2. App exists in Firebase Console\n'
+          '3. App is an Android app (not web or iOS)\n'
+          '4. You have permission to access this app\n\n'
+          'Firebase CLI Error: $error',
+        );
+      } else if (error.contains('permission') || error.contains('unauthorized')) {
+        throw Exception(
+          'Permission denied. Please ensure:\n'
+          '1. You have Firebase App Distribution Admin role\n'
+          '2. Service account has proper permissions\n'
+          '3. Authentication is set up correctly\n\n'
+          'Firebase CLI Error: $error',
+        );
+      } else {
+        throw Exception('Firebase CLI upload failed: $error');
+      }
     }
+
+    final output = result.stdout.toString();
+    _logger.info('Firebase CLI output: $output');
+
+    // Parse download URL from output
+    final downloadUrl = _parseDownloadUrl(output);
+    return downloadUrl;
   }
 
-  /// Format bytes to human readable string
-  String _formatBytes(int bytes) {
-    const units = ['B', 'KB', 'MB', 'GB'];
-    double size = bytes.toDouble();
-    int unitIndex = 0;
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex++;
+  /// Parse download URL from Firebase CLI output
+  String _parseDownloadUrl(String output) {
+    // Firebase CLI typically outputs something like:
+    // "View this release in the Firebase Console: https://console.firebase.google.com/..."
+    // or includes the download URL directly
+    
+    final lines = output.split('\n');
+    for (final line in lines) {
+      if (line.contains('console.firebase.google.com')) {
+        final match = RegExp(r'https://console\.firebase\.google\.com[^\s]*').firstMatch(line);
+        if (match != null) {
+          return match.group(0)!;
+        }
+      }
+      if (line.contains('https://') && line.contains('firebase')) {
+        final match = RegExp(r'https://[^\s]+').firstMatch(line);
+        if (match != null) {
+          return match.group(0)!;
+        }
+      }
     }
 
-    return '${size.toStringAsFixed(1)} ${units[unitIndex]}';
+    // If no URL found, return Firebase Console link
+    return 'https://console.firebase.google.com/project/$projectId/appdistribution';
   }
 
-  /// Dispose of resources
-  void dispose() {
-    _httpClient.close();
-  }
 }
 
-/// Exception thrown when upload times out
-class TimeoutException implements Exception {
+/// Exception thrown when Firebase CLI operation fails
+class FirebaseCliException implements Exception {
   final String message;
-  TimeoutException(this.message);
+  final String? stderr;
+  final String? stdout;
+
+  FirebaseCliException(this.message, {this.stderr, this.stdout});
 
   @override
-  String toString() => 'TimeoutException: $message';
+  String toString() => 'FirebaseCliException: $message';
 }

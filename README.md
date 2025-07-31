@@ -274,12 +274,30 @@ Firebase App Distribution is perfect for:
 
 1. **Go to [Firebase Console](https://console.firebase.google.com/)**
 2. **Select your project** (or create a new one)
-3. **Go to Project Settings** → **General**
-4. **Find your Android app** and copy:
+3. **Add an Android app** if you don't have one (Web apps are NOT supported)
+4. **Go to Project Settings** → **General**
+5. **Find your Android app** and copy:
    - **Project ID**: `your-firebase-project`  
-   - **App ID**: `1:123456789:android:abcdef`
+   - **App ID**: `1:123456789:android:abcdef` (NOT web app ID!)
 
-#### 2️⃣ **Set Up Authentication** (Choose one method)
+**⚠️ Important:** Firebase App Distribution only works with **Android apps**, not web apps. Make sure you're using an Android app ID in the format `1:123456789:android:abcdef`.
+
+#### 2️⃣ **Install Firebase CLI** (Required)
+
+Firebase App Distribution requires the Firebase CLI to be installed:
+
+```bash
+# Install Node.js first (if not already installed)
+# Download from: https://nodejs.org/
+
+# Install Firebase CLI globally
+npm install -g firebase-tools
+
+# Verify installation
+firebase --version
+```
+
+#### 3️⃣ **Set Up Authentication** (Choose one method)
 
 <details>
 <summary><strong>🔧 Method 1: Service Account (Recommended for CI/CD)</strong></summary>
@@ -287,7 +305,8 @@ Firebase App Distribution is perfect for:
 1. Go to **Firebase Console** → **Project Settings** → **Service Accounts**
 2. Click **"Generate new private key"**
 3. Download the JSON file and save it securely
-4. Use the path in your configuration:
+4. Ensure the service account has **Firebase App Distribution Admin** role
+5. Use the path in your configuration:
 
 ```bash
 share_my_apk --provider firebase \
@@ -299,14 +318,13 @@ share_my_apk --provider firebase \
 </details>
 
 <details>
-<summary><strong>🔧 Method 2: Google Cloud CLI (Easy for local development)</strong></summary>
+<summary><strong>🔧 Method 2: Firebase Login (Easy for local development)</strong></summary>
 
-1. Install [Google Cloud CLI](https://cloud.google.com/sdk/docs/install)
-2. Run authentication:
+1. Authenticate with Firebase CLI:
 ```bash
-gcloud auth application-default login
+firebase login
 ```
-3. Use Firebase without service account path:
+2. Use Firebase without service account:
 ```bash
 share_my_apk --provider firebase \
   --firebase-project-id your-project \
@@ -331,7 +349,7 @@ share_my_apk --provider firebase \
 
 </details>
 
-#### 3️⃣ **Upload Your First APK**
+#### 4️⃣ **Upload Your First APK**
 
 ```bash
 # Basic Firebase upload
