@@ -78,10 +78,10 @@ class FirebaseUploadService implements UploadService {
       await _validateApkFile(filePath);
 
       // Set up authentication
-      await _setupAuthentication();
+      final environment = await _setupAuthentication();
 
       // Upload using Firebase CLI
-      final downloadUrl = await _uploadWithFirebaseCli(filePath);
+      final downloadUrl = await _uploadWithFirebaseCli(filePath, environment);
 
       _logger.info('Firebase App Distribution upload completed successfully!');
       return downloadUrl;
@@ -147,8 +147,10 @@ class FirebaseUploadService implements UploadService {
     _logger.info('Uploading APK: ${path.basename(filePath)} (${fileSizeMB.toStringAsFixed(1)} MB)');
   }
 
-  /// Set up Firebase authentication
-  Future<void> _setupAuthentication() async {
+  /// Set up Firebase authentication and return environment variables
+  Future<Map<String, String>> _setupAuthentication() async {
+    final environment = Map<String, String>.from(Platform.environment);
+    
     if (serviceAccountPath != null && serviceAccountPath!.isNotEmpty) {
       // Use service account authentication
       final serviceAccountFile = File(serviceAccountPath!);
@@ -157,16 +159,23 @@ class FirebaseUploadService implements UploadService {
       }
 
       // Set environment variable for Firebase CLI
-      Platform.environment['GOOGLE_APPLICATION_CREDENTIALS'] = serviceAccountPath!;
+      environment['GOOGLE_APPLICATION_CREDENTIALS'] = serviceAccountPath!;
       _logger.info('Using service account authentication');
     } else {
-      // Check if user is logged in to Firebase
+      // Check if user is logged in to Firebase or has GOOGLE_APPLICATION_CREDENTIALS
+      final hasCredentials = Platform.environment['GOOGLE_APPLICATION_CREDENTIALS'] != null;
+      
       try {
-        final result = await Process.run('firebase', ['projects:list']);
-        if (result.exitCode != 0) {
+        final result = await Process.run('firebase', ['projects:list'], environment: environment);
+        if (result.exitCode != 0 && !hasCredentials) {
           throw Exception('Not authenticated with Firebase');
         }
-        _logger.info('Using Firebase login authentication');
+        
+        if (hasCredentials) {
+          _logger.info('Using GOOGLE_APPLICATION_CREDENTIALS environment variable');
+        } else {
+          _logger.info('Using Firebase login authentication');
+        }
       } catch (e) {
         throw Exception(
           'Firebase authentication required. Please either:\n'
@@ -177,10 +186,12 @@ class FirebaseUploadService implements UploadService {
         );
       }
     }
+    
+    return environment;
   }
 
   /// Upload APK using Firebase CLI
-  Future<String> _uploadWithFirebaseCli(String filePath) async {
+  Future<String> _uploadWithFirebaseCli(String filePath, Map<String, String> environment) async {
     final arguments = <String>[
       'appdistribution:distribute',
       filePath,
@@ -207,7 +218,7 @@ class FirebaseUploadService implements UploadService {
     final result = await Process.run(
       'firebase',
       arguments,
-      environment: Platform.environment,
+      environment: environment,
     );
 
     if (result.exitCode != 0) {
