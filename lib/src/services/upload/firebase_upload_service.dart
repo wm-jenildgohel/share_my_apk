@@ -124,6 +124,10 @@ class FirebaseUploadService implements UploadService {
 
   /// Get access token using service account JSON file
   Future<String> _getAccessTokenFromServiceAccount() async {
+    if (serviceAccountPath == null || serviceAccountPath!.isEmpty) {
+      throw ArgumentError('Service account path is null or empty');
+    }
+
     final serviceAccountFile = File(serviceAccountPath!);
     if (!await serviceAccountFile.exists()) {
       throw FileSystemException('Service account file not found', serviceAccountPath);
@@ -132,8 +136,15 @@ class FirebaseUploadService implements UploadService {
     final serviceAccountJson = await serviceAccountFile.readAsString();
     final serviceAccount = jsonDecode(serviceAccountJson) as Map<String, dynamic>;
 
-    final privateKey = serviceAccount['private_key'] as String;
-    final clientEmail = serviceAccount['client_email'] as String;
+    final privateKey = serviceAccount['private_key'] as String?;
+    final clientEmail = serviceAccount['client_email'] as String?;
+
+    if (privateKey == null || privateKey.isEmpty) {
+      throw ArgumentError('Service account JSON missing or empty private_key field');
+    }
+    if (clientEmail == null || clientEmail.isEmpty) {
+      throw ArgumentError('Service account JSON missing or empty client_email field');
+    }
 
     // Create JWT for service account authentication
     final jwt = _createJwt(clientEmail, privateKey);
@@ -153,7 +164,13 @@ class FirebaseUploadService implements UploadService {
     }
 
     final tokenData = jsonDecode(response.body) as Map<String, dynamic>;
-    return tokenData['access_token'] as String;
+    final accessToken = tokenData['access_token'] as String?;
+    
+    if (accessToken == null || accessToken.isEmpty) {
+      throw Exception('Received null or empty access token from OAuth2 response');
+    }
+    
+    return accessToken;
   }
 
   /// Get access token using Application Default Credentials
@@ -167,28 +184,40 @@ class FirebaseUploadService implements UploadService {
       ]);
 
       if (result.exitCode == 0) {
-        return result.stdout.toString().trim();
+        final token = result.stdout.toString().trim();
+        if (token.isNotEmpty) {
+          return token;
+        }
       }
+      _logger.warning('gcloud CLI returned empty token or failed with exit code: ${result.exitCode}');
     } catch (e) {
       _logger.warning('Failed to get token from gcloud CLI: $e');
     }
 
     // Fallback to environment variable
     final credentialsPath = Platform.environment['GOOGLE_APPLICATION_CREDENTIALS'];
-    if (credentialsPath != null) {
-      final tempService = FirebaseUploadService(
-        projectId: projectId,
-        appId: appId,
-        serviceAccountPath: credentialsPath,
-      );
-      return await tempService._getAccessTokenFromServiceAccount();
+    if (credentialsPath != null && credentialsPath.isNotEmpty) {
+      try {
+        final tempService = FirebaseUploadService(
+          projectId: projectId,
+          appId: appId,
+          serviceAccountPath: credentialsPath,
+        );
+        return await tempService._getAccessTokenFromServiceAccount();
+      } catch (e) {
+        _logger.warning('Failed to get token from service account file: $e');
+      }
     }
 
     throw Exception(
       'No authentication method available. Please either:\n'
       '1. Set serviceAccountPath parameter\n'
       '2. Run "gcloud auth application-default login"\n'
-      '3. Set GOOGLE_APPLICATION_CREDENTIALS environment variable',
+      '3. Set GOOGLE_APPLICATION_CREDENTIALS environment variable\n'
+      '\nCurrent state:\n'
+      '- Service account path: ${serviceAccountPath ?? "not provided"}\n'
+      '- GOOGLE_APPLICATION_CREDENTIALS: ${credentialsPath ?? "not set"}\n'
+      '- gcloud CLI: not authenticated or not available',
     );
   }
 
