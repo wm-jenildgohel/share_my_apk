@@ -192,7 +192,7 @@ dependencies:
 ### Basic Usage
 ```bash
 # Initialize configuration
-share_my_apk --init
+share_my_apk init
 
 # Build and upload
 share_my_apk

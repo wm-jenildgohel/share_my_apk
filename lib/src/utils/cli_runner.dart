@@ -56,27 +56,42 @@ class CliRunner {
         );
         provider = 'gofile';
         token = options.gofileToken;
-      } else {
-        if (provider == 'diawi') {
-          token = options.diawiToken;
-          _logger.info('Using Diawi (great for team sharing, 70MB limit)');
-          if (token == null) {
-            _logger.warning(
-              'No Diawi token found. Get one at: https://dashboard.diawi.com/profile/api',
-            );
-          }
-        } else {
-          token = options.gofileToken;
-          _logger.info('Using Gofile.io (no size limits, requires token)');
-          if (token == null) {
-            _logger.warning(
-              'No Gofile token found. Get one at: https://gofile.io/api',
-            );
-          }
+      } else if (provider == 'diawi') {
+        token = options.diawiToken;
+        _logger.info('Using Diawi (great for team sharing, 70MB limit)');
+        if (token == null) {
+          _logger.warning(
+            'No Diawi token found. Get one at: https://dashboard.diawi.com/profile/api',
+          );
+        }
+      } else if (provider == 'gofile') {
+        token = options.gofileToken;
+        _logger.info('Using Gofile.io (no size limits, requires token)');
+        if (token == null) {
+          _logger.warning(
+            'No Gofile token found. Get one at: https://gofile.io/api',
+          );
+        }
+      } else if (provider == 'firebase') {
+        _logger.info('Using Firebase App Distribution (enterprise-grade distribution)');
+        if (options.firebaseProjectId == null) {
+          _logger.warning('No Firebase project ID provided');
+        }
+        if (options.firebaseAppId == null) {
+          _logger.warning('No Firebase app ID provided');
         }
       }
 
-      final uploader = UploadServiceFactory.create(provider, token: token);
+      final uploader = UploadServiceFactory.create(
+        provider,
+        token: token,
+        projectId: options.firebaseProjectId,
+        appId: options.firebaseAppId,
+        serviceAccountPath: options.firebaseServiceAccountPath,
+        releaseNotes: options.firebaseReleaseNotes,
+        testers: options.firebaseTesters,
+        groups: options.firebaseGroups,
+      );
 
       _logger.info('Starting Upload Process...');
       _logger.info('   • Provider: $provider');
@@ -130,7 +145,9 @@ class CliRunner {
 
     final envConfigFile = File('.shareMyApk');
     final homeConfigFile = File('${Platform.environment['HOME'] ?? '.'}/.shareMyApk');
-    final hasEnvVars = Platform.environment.containsKey('DIAWI_TOKEN') || Platform.environment.containsKey('GOFILE_TOKEN');
+    final hasEnvVars = Platform.environment.containsKey('DIAWI_TOKEN') || 
+                       Platform.environment.containsKey('GOFILE_TOKEN') ||
+                       Platform.environment.containsKey('FIREBASE_PROJECT_ID');
 
     if (hasEnvVars) {
       _logger.info('   • Source: Environment variables');
@@ -155,6 +172,20 @@ class CliRunner {
     }
     if (options.outputDir != null) {
       _logger.info('   • Output dir: ${options.outputDir}');
+    }
+    if (options.provider == 'firebase') {
+      if (options.firebaseProjectId != null) {
+        _logger.info('   • Firebase project: ${options.firebaseProjectId}');
+      }
+      if (options.firebaseAppId != null) {
+        _logger.info('   • Firebase app: ${options.firebaseAppId}');
+      }
+      if (options.firebaseTesters?.isNotEmpty == true) {
+        _logger.info('   • Firebase testers: ${options.firebaseTesters!.length} emails');
+      }
+      if (options.firebaseGroups?.isNotEmpty == true) {
+        _logger.info('   • Firebase groups: ${options.firebaseGroups!.join(", ")}');
+      }
     }
 
     stdout.writeln('');

@@ -191,7 +191,7 @@ class CliOptions {
 | Option | Alias | Type | Default | Description |
 |--------|-------|------|---------|-------------|
 | `--help` | `-h` | Flag | - | Show help message |
-| `--init` | - | Flag | - | Generate config file |
+| `init` | - | Command | - | Generate config file |
 | `--diawi-token` | - | String | - | Diawi API token |
 | `--gofile-token` | - | String | - | Gofile API token |
 | `--path` | `-p` | String | `.` | Flutter project path |
@@ -206,7 +206,7 @@ class CliOptions {
 
 ```bash
 # Initialize configuration
-share_my_apk --init
+share_my_apk init
 
 # Basic usage (uses config file)
 share_my_apk
@@ -559,7 +559,7 @@ void main() async {
 share_my_apk --help
 
 # Verify config is being read
-share_my_apk --init  # Generate fresh config
+share_my_apk init  # Generate fresh config
 ```
 
 **Configuration Priority Order** (Fixed in v1.0.0):

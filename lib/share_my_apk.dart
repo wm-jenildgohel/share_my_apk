@@ -1,12 +1,12 @@
 /// **Share My APK** - The Ultimate Flutter APK Build & Upload Automation Tool
 ///
 /// This library provides comprehensive tools for automating Flutter Android APK
-/// builds and uploads to cloud services like Diawi and Gofile.io.
+/// builds and uploads to cloud services like Diawi, Gofile.io, and Firebase App Distribution.
 ///
 /// ## Features
 ///
 /// - **One-Command Automation**: Build and upload APKs with a single command
-/// - **Multi-Provider Support**: Upload to Diawi and Gofile.io with smart switching
+/// - **Multi-Provider Support**: Upload to Diawi, Gofile.io, and Firebase App Distribution
 /// - **Comprehensive Build Pipeline**: Automatic clean, dependencies, and localization
 /// - **Smart Organization**: Custom naming, versioning, and directory structure
 /// - **Production Ready**: Enterprise-grade reliability with 100+ tests
@@ -53,6 +53,7 @@
 /// - **[UploadServiceFactory]**: Creates upload service instances for different providers
 /// - **[DiawiUploadService]**: Upload to Diawi with polling and timeout handling
 /// - **[GofileUploadService]**: Upload to Gofile.io with retry logic
+/// - **[FirebaseUploadService]**: Upload to Firebase App Distribution with enterprise features
 /// - **[ConfigService]**: YAML configuration management
 /// - **[ArgParserUtil]**: Command-line argument parsing
 ///
@@ -98,6 +99,7 @@ export 'package:share_my_apk/src/services/build/flutter_build_service.dart';
 
 // Upload Services
 export 'package:share_my_apk/src/services/upload/diawi_upload_service.dart';
+export 'package:share_my_apk/src/services/upload/firebase_upload_service.dart';
 export 'package:share_my_apk/src/services/upload/gofile_upload_service.dart';
 export 'package:share_my_apk/src/services/upload/upload_service.dart';
 export 'package:share_my_apk/src/services/upload/upload_service_factory.dart';

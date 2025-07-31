@@ -12,6 +12,12 @@ class ArgParserUtil {
   static const _help = 'help';
   static const _diawiToken = 'diawi-token';
   static const _gofileToken = 'gofile-token';
+  static const _firebaseProjectId = 'firebase-project-id';
+  static const _firebaseAppId = 'firebase-app-id';
+  static const _firebaseServiceAccountPath = 'firebase-service-account';
+  static const _firebaseReleaseNotes = 'firebase-notes';
+  static const _firebaseTesters = 'firebase-testers';
+  static const _firebaseGroups = 'firebase-groups';
   static const _path = 'path';
   static const _release = 'release';
   static const _provider = 'provider';
@@ -36,11 +42,17 @@ class ArgParserUtil {
     _parser.addOption(
       _provider,
       help:
-          'The upload provider to use.\n[diawi, gofile] (reads from config file)',
-      allowed: ['diawi', 'gofile'],
+          'The upload provider to use.\n[diawi, gofile, firebase] (reads from config file)',
+      allowed: ['diawi', 'gofile', 'firebase'],
     );
     _parser.addOption(_diawiToken, help: 'Your Diawi API token.');
     _parser.addOption(_gofileToken, help: 'Your Gofile API token.');
+    _parser.addOption(_firebaseProjectId, help: 'Firebase project ID.');
+    _parser.addOption(_firebaseAppId, help: 'Firebase app ID (format: 1:123456789:android:abcdef).');
+    _parser.addOption(_firebaseServiceAccountPath, help: 'Path to Firebase service account JSON file.');
+    _parser.addOption(_firebaseReleaseNotes, help: 'Release notes for Firebase App Distribution.');
+    _parser.addOption(_firebaseTesters, help: 'Comma-separated list of tester emails for Firebase.');
+    _parser.addOption(_firebaseGroups, help: 'Comma-separated list of tester groups for Firebase.');
     _parser.addOption(
       _path,
       abbr: 'p',
@@ -125,6 +137,29 @@ class ArgParserUtil {
         argResults[_gofileToken] as String? ??
         config['gofile_token']?.toString();
 
+    // Firebase configuration
+    final firebaseProjectId =
+        argResults[_firebaseProjectId] as String? ?? config['firebase_project_id']?.toString();
+    final firebaseAppId =
+        argResults[_firebaseAppId] as String? ?? config['firebase_app_id']?.toString();
+    final firebaseServiceAccountPath =
+        argResults[_firebaseServiceAccountPath] as String? ?? config['firebase_service_account_path']?.toString();
+    final firebaseReleaseNotes =
+        argResults[_firebaseReleaseNotes] as String? ?? config['firebase_release_notes']?.toString();
+    
+    // Parse comma-separated lists
+    List<String>? firebaseTesters;
+    final testersString = argResults[_firebaseTesters] as String? ?? config['firebase_testers']?.toString();
+    if (testersString != null && testersString.isNotEmpty) {
+      firebaseTesters = testersString.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    
+    List<String>? firebaseGroups;
+    final groupsString = argResults[_firebaseGroups] as String? ?? config['firebase_groups']?.toString();
+    if (groupsString != null && groupsString.isNotEmpty) {
+      firebaseGroups = groupsString.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+
     String? token;
     if (provider == 'diawi') {
       token = diawiToken;
@@ -169,6 +204,30 @@ class ArgParserUtil {
       );
     }
 
+    if (provider == 'firebase') {
+      if (firebaseProjectId == null || firebaseProjectId.isEmpty) {
+        throw ArgumentError(
+          'Firebase App Distribution requires a project ID!\n\n'
+          'Quick Setup:\n'
+          '1. Get your project ID from Firebase Console\n'
+          '2. Use: share_my_apk --provider firebase --firebase-project-id YOUR_PROJECT_ID --firebase-app-id YOUR_APP_ID\n'
+          '3. Or add to share_my_apk.yaml:\n'
+          '   firebase_project_id: YOUR_PROJECT_ID\n'
+          '   firebase_app_id: YOUR_APP_ID\n\n'
+          'Available options:\n${_parser.usage}',
+        );
+      }
+      if (firebaseAppId == null || firebaseAppId.isEmpty) {
+        throw ArgumentError(
+          'Firebase App Distribution requires an app ID!\n\n'
+          'Format: 1:123456789:android:abcdef\n'
+          'Find it in Firebase Console > Project Settings > General\n\n'
+          'Usage: share_my_apk --provider firebase --firebase-app-id YOUR_APP_ID\n\n'
+          'Available options:\n${_parser.usage}',
+        );
+      }
+    }
+
     // Validate paths if provided
     if (path != null && !Directory(path).existsSync()) {
       throw ArgumentError(
@@ -203,6 +262,12 @@ class ArgParserUtil {
       outputDir: outputDir,
       diawiToken: diawiToken,
       gofileToken: gofileToken,
+      firebaseProjectId: firebaseProjectId,
+      firebaseAppId: firebaseAppId,
+      firebaseServiceAccountPath: firebaseServiceAccountPath,
+      firebaseReleaseNotes: firebaseReleaseNotes,
+      firebaseTesters: firebaseTesters,
+      firebaseGroups: firebaseGroups,
       clean: clean,
       getPubDeps: getPubDeps,
       generateL10n: generateL10n,
@@ -262,15 +327,16 @@ JOKE OF THE DAY
 # ================================================
 # UPLOAD PROVIDER (Required)
 # ================================================
-# Choose your upload provider: diawi or gofile
+# Choose your upload provider: diawi, gofile, or firebase
 # • Diawi: Great for team sharing, 70MB limit, links expire in 30 days
 # • Gofile: No size limits, permanent public links
+# • Firebase: Enterprise-grade distribution with tester management
 PROVIDER=gofile
 
 # ================================================  
 # API TOKENS (Required for uploads)
 # ================================================
-# Both providers require API tokens for uploads
+# Different providers have different requirements
 
 # Diawi API Token
 # Get yours at: https://dashboard.diawi.com/profile/api
@@ -279,6 +345,15 @@ PROVIDER=gofile
 # Gofile API Token  
 # Get yours at: https://gofile.io/api
 # GOFILE_TOKEN=your_gofile_token_here
+
+# Firebase App Distribution Configuration
+# Get project info from Firebase Console > Project Settings
+# FIREBASE_PROJECT_ID=your-firebase-project
+# FIREBASE_APP_ID=1:123456789:android:abcdef
+# FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json
+# FIREBASE_RELEASE_NOTES=New beta release with bug fixes
+# FIREBASE_TESTERS=tester1@example.com,tester2@example.com
+# FIREBASE_GROUPS=internal-team,beta-testers
 
 # ================================================
 # BUILD CONFIGURATION
@@ -329,11 +404,13 @@ RELEASE=true
 # Environment variables (highest priority):
 #   export DIAWI_TOKEN="your_token"
 #   export GOFILE_TOKEN="your_token"
+#   export FIREBASE_PROJECT_ID="your-project"
 #   share_my_apk
 #
 # Command line (overrides this file):
 #   share_my_apk --diawi-token YOUR_TOKEN
 #   share_my_apk --gofile-token YOUR_TOKEN --name MyApp_Beta
+#   share_my_apk --provider firebase --firebase-project-id PROJECT --firebase-app-id APP_ID
 #
 # This config file (edit values above):
 #   share_my_apk

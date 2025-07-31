@@ -30,6 +30,24 @@ class CliOptions {
   /// API token for Gofile.io.
   final String? gofileToken;
 
+  /// Firebase project ID (required for Firebase App Distribution).
+  final String? firebaseProjectId;
+
+  /// Firebase app ID (format: 1:123456789:android:abcdef).
+  final String? firebaseAppId;
+
+  /// Path to Firebase service account JSON file.
+  final String? firebaseServiceAccountPath;
+
+  /// Release notes for Firebase App Distribution.
+  final String? firebaseReleaseNotes;
+
+  /// List of tester email addresses for Firebase App Distribution.
+  final List<String>? firebaseTesters;
+
+  /// List of tester groups for Firebase App Distribution.
+  final List<String>? firebaseGroups;
+
   /// Path to the Flutter project directory.
   ///
   /// If not specified, the current working directory will be used.
@@ -48,6 +66,7 @@ class CliOptions {
   /// Supported providers:
   /// - `'diawi'`: Upload to Diawi service (requires token)
   /// - `'gofile'`: Upload to Gofile.io service (requires API token)
+  /// - `'firebase'`: Upload to Firebase App Distribution (requires project ID and app ID)
   ///
   /// The tool automatically switches from Diawi to Gofile.io if the APK
   /// size exceeds 70MB and Diawi is selected.
@@ -117,6 +136,12 @@ class CliOptions {
     this.token,
     this.diawiToken,
     this.gofileToken,
+    this.firebaseProjectId,
+    this.firebaseAppId,
+    this.firebaseServiceAccountPath,
+    this.firebaseReleaseNotes,
+    this.firebaseTesters,
+    this.firebaseGroups,
     this.path,
     this.isRelease = true,
     this.provider = 'diawi',
@@ -138,6 +163,12 @@ class CliOptions {
     String? token,
     String? diawiToken,
     String? gofileToken,
+    String? firebaseProjectId,
+    String? firebaseAppId,
+    String? firebaseServiceAccountPath,
+    String? firebaseReleaseNotes,
+    List<String>? firebaseTesters,
+    List<String>? firebaseGroups,
     String? path,
     bool? isRelease,
     String? provider,
@@ -154,6 +185,12 @@ class CliOptions {
       token: token ?? this.token,
       diawiToken: diawiToken ?? this.diawiToken,
       gofileToken: gofileToken ?? this.gofileToken,
+      firebaseProjectId: firebaseProjectId ?? this.firebaseProjectId,
+      firebaseAppId: firebaseAppId ?? this.firebaseAppId,
+      firebaseServiceAccountPath: firebaseServiceAccountPath ?? this.firebaseServiceAccountPath,
+      firebaseReleaseNotes: firebaseReleaseNotes ?? this.firebaseReleaseNotes,
+      firebaseTesters: firebaseTesters ?? this.firebaseTesters,
+      firebaseGroups: firebaseGroups ?? this.firebaseGroups,
       path: path ?? this.path,
       isRelease: isRelease ?? this.isRelease,
       provider: provider ?? this.provider,
@@ -174,6 +211,12 @@ class CliOptions {
         'token: ${token != null ? '***' : 'null'}, '
         'diawiToken: ${diawiToken != null ? '***' : 'null'}, '
         'gofileToken: ${gofileToken != null ? '***' : 'null'}, '
+        'firebaseProjectId: $firebaseProjectId, '
+        'firebaseAppId: $firebaseAppId, '
+        'firebaseServiceAccountPath: ${firebaseServiceAccountPath != null ? '***' : 'null'}, '
+        'firebaseReleaseNotes: $firebaseReleaseNotes, '
+        'firebaseTesters: $firebaseTesters, '
+        'firebaseGroups: $firebaseGroups, '
         'path: $path, '
         'isRelease: $isRelease, '
         'provider: $provider, '
