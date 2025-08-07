@@ -20,32 +20,64 @@ class CliRunner {
 
       _showConfigurationInfo(options);
 
-      final apkBuilder = FlutterBuildService(logger: _logger);
+      final buildService = FlutterBuildService(logger: _logger);
 
-      final apkPath = await apkBuilder.build(
-        release: options.isRelease,
-        projectPath: options.path ?? '.',
-        customName: options.customName,
-        environment: options.environment,
-        outputDir: options.outputDir,
-        clean: options.clean,
-        getPubDeps: options.getPubDeps,
-        generateL10n: options.generateL10n,
-        verbose: options.verbose,
-      );
+      final String filePath;
+      final String fileType;
 
-      final apkFile = File(apkPath);
-      final fileSize = await apkFile.length();
+      if (options.bundle) {
+        // Build AAB (Android App Bundle)
+        filePath = await buildService.buildBundle(
+          release: options.isRelease,
+          projectPath: options.path ?? '.',
+          customName: options.customName,
+          environment: options.environment,
+          outputDir: options.outputDir,
+          clean: options.clean,
+          getPubDeps: options.getPubDeps,
+          generateL10n: options.generateL10n,
+          verbose: options.verbose,
+        );
+        fileType = 'AAB';
+      } else {
+        // Build APK
+        filePath = await buildService.build(
+          release: options.isRelease,
+          projectPath: options.path ?? '.',
+          customName: options.customName,
+          environment: options.environment,
+          outputDir: options.outputDir,
+          clean: options.clean,
+          getPubDeps: options.getPubDeps,
+          generateL10n: options.generateL10n,
+          verbose: options.verbose,
+        );
+        fileType = 'APK';
+      }
+
+      final file = File(filePath);
+      final fileSize = await file.length();
       final fileSizeMB = (fileSize / 1024 / 1024);
-      var provider = options.provider;
-      String? token;
-
-      _logger.info('APK Information:');
-      _logger.info('   • File: ${apkFile.path.split('/').last}');
+      
+      _logger.info('$fileType Information:');
+      _logger.info('   • File: ${file.path.split('/').last}');
       _logger.info(
         '   • Size: ${fileSizeMB.toStringAsFixed(2)} MB ($fileSize bytes)',
       );
-      _logger.info('   • Location: $apkPath');
+      _logger.info('   • Location: $filePath');
+      
+      // AAB files are saved locally only, no upload
+      if (options.bundle) {
+        _logger.info('\n✅ AAB build completed successfully!');
+        _logger.info('📦 Android App Bundle saved for Google Play Store publishing.');
+        _logger.info('📍 Location: $filePath');
+        _logger.info('\n💡 Note: AAB files are optimized for Play Store and are not uploaded to sharing services.');
+        return;
+      }
+      
+      // Continue with upload logic for APK files
+      var provider = options.provider;
+      String? token;
 
       if (provider == 'diawi' && fileSize > 70 * 1024 * 1024) {
         _logger.warning(
@@ -85,7 +117,7 @@ class CliRunner {
         _logger.info('   • Authentication: Anonymous upload');
       }
 
-      final downloadLink = await uploader.upload(apkPath);
+      final downloadLink = await uploader.upload(filePath);
 
       stdout.writeln('\n' * 3);
       message_util.MessageUtil.printSuccessBox(provider, downloadLink);
@@ -147,7 +179,10 @@ class CliRunner {
 
     _logger.info('   • Project: ${options.path ?? "."}');
     _logger.info('   • Build mode: ${options.isRelease ? "release" : "debug"}');
-    _logger.info('   • Provider: ${options.provider}');
+    _logger.info('   • Output type: ${options.bundle ? "AAB (Android App Bundle)" : "APK"}');
+    if (!options.bundle) {
+      _logger.info('   • Provider: ${options.provider}');
+    }
 
     if (options.customName != null) {
       _logger.info('   • Custom name: ${options.customName}');

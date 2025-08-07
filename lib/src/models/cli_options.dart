@@ -95,13 +95,23 @@ class CliOptions {
   /// This ensures localization files are generated before building.
   /// Defaults to `true`.
   final bool generateL10n;
+  
+  /// Whether to enable verbose output.
   final bool verbose;
+  
+  /// Whether to build an Android App Bundle (AAB) instead of APK.
+  ///
+  /// When `true`, builds an AAB file for Google Play Store publishing.
+  /// When `false` (default), builds an APK file for direct distribution.
+  /// AAB files are saved locally and do not get uploaded to any provider.
+  final bool bundle;
 
   /// Creates a new [CliOptions] instance.
   ///
   /// All parameters are optional and have sensible defaults.
   /// The [isRelease] parameter defaults to `true` and [provider] defaults to `'diawi'`.
   /// Build pipeline options default to `true` for comprehensive builds.
+  /// The [bundle] parameter defaults to `false` (build APK).
   const CliOptions({
     this.token,
     this.diawiToken,
@@ -116,6 +126,7 @@ class CliOptions {
     this.getPubDeps = true,
     this.generateL10n = true,
     this.verbose = false,
+    this.bundle = false,
   });
 
   /// Creates a copy of this [CliOptions] with the given fields replaced.
@@ -136,6 +147,7 @@ class CliOptions {
     bool? getPubDeps,
     bool? generateL10n,
     bool? verbose,
+    bool? bundle,
   }) {
     return CliOptions(
       token: token ?? this.token,
@@ -151,6 +163,7 @@ class CliOptions {
       getPubDeps: getPubDeps ?? this.getPubDeps,
       generateL10n: generateL10n ?? this.generateL10n,
       verbose: verbose ?? this.verbose,
+      bundle: bundle ?? this.bundle,
     );
   }
 
@@ -169,7 +182,8 @@ class CliOptions {
         'clean: $clean, '
         'getPubDeps: $getPubDeps, '
         'generateL10n: $generateL10n, '
-        'verbose: $verbose'
+        'verbose: $verbose, '
+        'bundle: $bundle'
         ')';
   }
 }

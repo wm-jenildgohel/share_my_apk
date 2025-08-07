@@ -103,6 +103,197 @@ class FlutterBuildService {
     }
   }
 
+  /// Builds a Flutter Android App Bundle (AAB) with comprehensive build pipeline.
+  ///
+  /// - [release]: Whether to build in release mode. Defaults to `true`.
+  /// - [projectPath]: The path to the Flutter project. Defaults to the current directory.
+  /// - [customName]: A custom name for the AAB file.
+  /// - [environment]: The build environment (e.g., 'dev', 'prod').
+  /// - [outputDir]: The directory to save the final AAB file.
+  /// - [clean]: Whether to run flutter clean before build. Defaults to `true`.
+  /// - [getPubDeps]: Whether to run pub get before build. Defaults to `true`.
+  /// - [generateL10n]: Whether to generate localizations. Defaults to `true`.
+  ///
+  /// Returns the path to the built and organized AAB file.
+  Future<String> buildBundle({
+    bool release = true,
+    String? projectPath,
+    String? customName,
+    String? environment,
+    String? outputDir,
+    bool clean = true,
+    bool getPubDeps = true,
+    bool generateL10n = true,
+    bool verbose = false,
+  }) async {
+    final workingDir = projectPath ?? Directory.current.path;
+    final shell = Shell(workingDirectory: workingDir);
+    final buildType = release ? 'release' : 'debug';
+
+    _logger?.info('Starting comprehensive AAB build (mode: $buildType)...');
+
+    final flutterCommand = _detectFlutterCommand(workingDir);
+    _logger?.fine('Using Flutter command: $flutterCommand');
+
+    await _runBuildPipeline(
+      shell,
+      flutterCommand,
+      workingDir,
+      buildType,
+      clean,
+      getPubDeps,
+      generateL10n,
+      verbose,
+    );
+
+    final result = await _runCommand(
+      shell,
+      '$flutterCommand build appbundle --$buildType',
+      'Building AAB ($buildType mode)...',
+      verbose,
+    );
+
+    if (result.first.exitCode == 0) {
+      final buildOutput = result.outText;
+      _logger?.fine('Build output:\n$buildOutput');
+
+      final originalBundlePath = _getBundlePath(
+        buildOutput,
+        projectPath,
+        buildType,
+      );
+      if (originalBundlePath != null) {
+        _logger?.info('AAB built successfully: $originalBundlePath');
+
+        final finalBundlePath = await _organizeBundleFile(
+          originalBundlePath,
+          projectPath,
+          customName,
+          environment,
+          outputDir,
+        );
+
+        return finalBundlePath;
+      } else {
+        _logger?.severe('Could not find AAB path in build output.');
+        throw Exception('AAB build failed: Could not find AAB path.');
+      }
+    } else {
+      _logger?.severe(
+        'AAB build failed with exit code ${result.first.exitCode}:',
+      );
+      _logger?.severe(result.errText);
+      throw Exception('AAB build failed.');
+    }
+  }
+
+  /// Extracts AAB path from Flutter build output.
+  String? _getBundlePath(String buildOutput, String? projectPath, String buildType) {
+    final workingDir = projectPath ?? Directory.current.path;
+    
+    // Default AAB location for Flutter
+    final bundlePath = p.join(
+      workingDir,
+      'build',
+      'app',
+      'outputs',
+      'bundle',
+      '${buildType}Release',
+      'app-$buildType-release.aab',
+    );
+    
+    final bundleFile = File(bundlePath);
+    if (bundleFile.existsSync()) {
+      return bundlePath;
+    }
+    
+    // Fallback: look for any .aab file in the build output directory
+    final bundleDir = p.join(workingDir, 'build', 'app', 'outputs', 'bundle');
+    final bundleDirectory = Directory(bundleDir);
+    
+    if (bundleDirectory.existsSync()) {
+      final aabFiles = bundleDirectory
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.aab'))
+          .toList();
+      
+      if (aabFiles.isNotEmpty) {
+        // Return the most recently modified .aab file
+        aabFiles.sort((a, b) => 
+          b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+        return aabFiles.first.path;
+      }
+    }
+    
+    return null;
+  }
+
+  /// Organizes the bundle file with custom naming and directory structure.
+  Future<String> _organizeBundleFile(
+    String originalBundlePath,
+    String? projectPath,
+    String? customName,
+    String? environment,
+    String? outputDir,
+  ) async {
+    final originalFile = File(originalBundlePath);
+    final workingDir = projectPath ?? Directory.current.path;
+    
+    // Use ApkOrganizerService logic but for AAB files
+    String fileName;
+    if (customName != null) {
+      fileName = customName;
+    } else {
+      // Try to get app name from pubspec.yaml
+      try {
+        final pubspecFile = File(p.join(workingDir, 'pubspec.yaml'));
+        final pubspecContent = await pubspecFile.readAsString();
+        final nameMatch = RegExp(r'^name:\s*(.+)$', multiLine: true)
+            .firstMatch(pubspecContent);
+        fileName = nameMatch?.group(1)?.trim() ?? 'app';
+      } catch (e) {
+        fileName = 'app';
+      }
+    }
+    
+    // Add timestamp
+    final now = DateTime.now();
+    final timestamp = '${now.year}_${now.month.toString().padLeft(2, '0')}_'
+        '${now.day.toString().padLeft(2, '0')}_'
+        '${now.hour.toString().padLeft(2, '0')}_'
+        '${now.minute.toString().padLeft(2, '0')}_'
+        '${now.second.toString().padLeft(2, '0')}';
+    
+    final finalFileName = '${fileName}_$timestamp.aab';
+    
+    // Determine output directory
+    String targetDir;
+    if (outputDir != null) {
+      targetDir = outputDir;
+    } else {
+      targetDir = p.join(workingDir, 'build', 'bundle');
+    }
+    
+    // Add environment subdirectory if specified
+    if (environment != null) {
+      targetDir = p.join(targetDir, environment);
+    }
+    
+    // Create target directory if it doesn't exist
+    final targetDirectory = Directory(targetDir);
+    if (!targetDirectory.existsSync()) {
+      await targetDirectory.create(recursive: true);
+    }
+    
+    // Copy file to final location
+    final finalPath = p.join(targetDir, finalFileName);
+    await originalFile.copy(finalPath);
+    
+    _logger?.info('Bundle organized: $finalPath');
+    return finalPath;
+  }
+
   Future<List<ProcessResult>> _runCommand(
     Shell shell,
     String command,

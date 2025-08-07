@@ -6,10 +6,11 @@
 
 ## Project Overview
 
-**Share My APK** is a Flutter CLI tool and Dart library that automates building and uploading Android APK files to file sharing services. It eliminates the manual "build-and-drag-drop" workflow developers face when sharing APKs for testing.
+**Share My APK** is a Flutter CLI tool and Dart library that automates building and uploading Android APK files to file sharing services, or creating Android App Bundles (AAB) for Google Play Store publishing. It eliminates the manual "build-and-drag-drop" workflow developers face when sharing APKs for testing or preparing AABs for store deployment.
 
 ### Key Features
 - 🚀 One-command APK build and upload
+- 📦 **Android App Bundle (AAB) support** for Google Play Store publishing
 - ☁️ Multiple upload providers (Diawi, Gofile.io) with **fixed API integration**
 - 🔄 Intelligent provider switching based on file size (>70MB → Gofile)
 - 🎨 Custom file naming and organization
@@ -55,7 +56,7 @@ share_my_apk/
 ### Build Services
 
 #### FlutterBuildService
-**Purpose:** Orchestrates APK building process
+**Purpose:** Orchestrates APK and AAB building process
 
 ```dart
 class FlutterBuildService {
@@ -64,6 +65,15 @@ class FlutterBuildService {
     bool release = true,        // Release/debug mode
     String? projectPath,        // Flutter project path
     String? customName,         // Custom APK name
+    String? environment,        // Environment folder (dev/staging/prod)
+    String? outputDir,         // Custom output directory
+  });
+  
+  /// Builds Android App Bundle (AAB) and returns organized file path
+  Future<String> buildBundle({
+    bool release = true,        // Release/debug mode
+    String? projectPath,        // Flutter project path
+    String? customName,         // Custom AAB name
     String? environment,        // Environment folder (dev/staging/prod)
     String? outputDir,         // Custom output directory
   });
@@ -176,9 +186,10 @@ class CliOptions {
   final String? path;            // Project path
   final bool isRelease;          // Release mode flag
   final String provider;         // Upload provider
-  final String? customName;      // Custom APK name
+  final String? customName;      // Custom file name (APK/AAB)
   final String? environment;     // Environment folder
   final String? outputDir;       // Output directory
+  final bool bundle;             // Build AAB instead of APK
   
   // Includes copyWith() for immutable updates
 }
@@ -192,12 +203,13 @@ class CliOptions {
 |--------|-------|------|---------|-------------|
 | `--help` | `-h` | Flag | - | Show help message |
 | `--init` | - | Flag | - | Generate config file |
+| `--bundle` | - | Flag | `false` | Build AAB instead of APK |
 | `--diawi-token` | - | String | - | Diawi API token |
 | `--gofile-token` | - | String | - | Gofile API token |
 | `--path` | `-p` | String | `.` | Flutter project path |
 | `--release` | - | Flag | `true` | Build in release mode |
 | `--provider` | - | String | `diawi` | Upload provider |
-| `--name` | `-n` | String | - | Custom APK name |
+| `--name` | `-n` | String | - | Custom file name |
 | `--environment` | `-e` | String | - | Environment folder |
 | `--output-dir` | `-o` | String | - | Output directory |
 
@@ -207,10 +219,16 @@ class CliOptions {
 # Initialize configuration
 share_my_apk --init
 
-# Basic usage (uses config file)
+# Basic APK usage (uses config file)
 share_my_apk
 
-# Specific provider with custom naming
+# Build Android App Bundle (AAB) for Google Play Store
+share_my_apk --bundle
+
+# Build AAB with custom naming and environment
+share_my_apk --bundle --name MyApp_Production --environment prod
+
+# Specific provider with custom naming (APK only)
 share_my_apk --provider gofile --name MyApp_Beta --environment staging
 
 # Debug build to custom location
@@ -240,6 +258,7 @@ gofile_token: your_gofile_token_here
 # Build configuration
 path: .
 release: true
+bundle: false  # Set to true for AAB, false for APK
 
 # File organization
 name: MyApp_Production
@@ -264,10 +283,12 @@ share_my_apk:
 
 ### Build Workflow
 1. **Parse Arguments**: Merge CLI args with config files
-2. **Execute Flutter Build**: Run `flutter build apk --release/--debug`
-3. **Parse Build Output**: Extract APK path from Flutter output
-4. **Organize File**: Copy/rename APK based on configuration
-5. **Return Path**: Provide final APK location for upload
+2. **Execute Flutter Build**: 
+   - APK: Run `flutter build apk --release/--debug`
+   - AAB: Run `flutter build appbundle --release/--debug`
+3. **Parse Build Output**: Extract file path from Flutter output
+4. **Organize File**: Copy/rename file based on configuration
+5. **Return Path**: Provide final file location for upload (APK only) or local storage (AAB)
 
 ### Upload Workflow
 1. **Check File Size**: Determine if file exceeds provider limits
@@ -278,21 +299,27 @@ share_my_apk:
 
 ### File Naming Convention
 ```
-Pattern: {name}_{version}_{timestamp}.apk
+APK Pattern: {name}_{version}_{timestamp}.apk
+AAB Pattern: {name}_{timestamp}.aab
 
 Examples:
 - MyApp_1.0.0_2025_07_08_12_30_45.apk
 - staging_build_1.2.3_2025_07_08_14_15_30.apk
+- MyApp_Production_2025_01_15_16_45_12.aab
+- staging_build_2025_01_15_16_45_12.aab
 ```
 
 ### Directory Organization
 ```
 {outputDir}/
 ├── {environment}/                    # Optional environment folder
-│   ├── MyApp_1.0.0_timestamp.apk   # Organized APK files
-│   └── MyApp_1.0.1_timestamp.apk
+│   ├── MyApp_1.0.0_timestamp.apk   # APK files (for sharing)
+│   ├── MyApp_1.0.1_timestamp.apk
+│   ├── MyApp_Production_timestamp.aab  # AAB files (for Play Store)
+│   └── MyApp_Staging_timestamp.aab
 └── other_env/
-    └── MyApp_dev_timestamp.apk
+    ├── MyApp_dev_timestamp.apk
+    └── MyApp_dev_timestamp.aab
 ```
 
 ## Intelligent Features
@@ -439,6 +466,8 @@ dart compile exe bin/share_my_apk.dart -o build/share_my_apk
 ## Library Usage Examples
 
 ### Basic Library Usage
+
+#### Building APK for Sharing
 ```dart
 import 'package:share_my_apk/share_my_apk.dart';
 
@@ -456,6 +485,23 @@ void main() async {
   final downloadLink = await uploader.upload(apkPath);
   
   print('Download link: $downloadLink');
+}
+```
+
+#### Building AAB for Google Play Store
+```dart
+import 'package:share_my_apk/share_my_apk.dart';
+
+void main() async {
+  // Build AAB
+  final buildService = FlutterBuildService();
+  final aabPath = await buildService.buildBundle(
+    release: true,
+    customName: 'MyApp_Production',
+    environment: 'prod',
+  );
+
+  print('AAB ready for Play Store: $aabPath');
 }
 ```
 

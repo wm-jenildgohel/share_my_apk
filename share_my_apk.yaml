@@ -22,6 +22,9 @@ path: .
 # Build mode (release = optimized APK, debug = development APK)
 release: true
 
+# Build type (false = APK for sharing, true = AAB for Google Play Store)
+bundle: false
+
 # 🏷️  FILE ORGANIZATION
 # Custom name for the APK file (without .apk extension)
 # Example: "MyApp_v1.0" -> "MyApp_v1.0_2025_01_15_14_30_45.apk"

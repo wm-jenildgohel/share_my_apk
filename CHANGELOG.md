@@ -1,3 +1,17 @@
+## 🎉 1.1.0 - The "Android App Bundle" Release
+
+**📦 Major Feature Addition: AAB Support**
+
+-   **🆕 Android App Bundle (AAB) Support:** Added complete support for building Android App Bundles for Google Play Store publishing.
+-   **🚀 New CLI Flag:** Added `--bundle` flag to build AAB files instead of APK files.
+-   **📁 Local-Only AAB Storage:** AAB files are saved locally and not uploaded to sharing services (as intended for Play Store publishing).
+-   **🎨 Enhanced File Organization:** Extended file naming and directory organization to support both APK and AAB formats.
+-   **⚙️ Updated Configuration:** Added `bundle: true/false` option to YAML configuration files.
+-   **📚 Comprehensive Documentation:** Updated all documentation to include AAB functionality and usage examples.
+-   **🔧 Service Architecture:** Extended `FlutterBuildService` with new `buildBundle()` method for AAB creation.
+
+---
+
 ## 🎉 1.0.0 - The "Production Ready" Release
 
 **🚀 First Stable Production Release**

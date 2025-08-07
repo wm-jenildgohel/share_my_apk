@@ -23,6 +23,7 @@ class ArgParserUtil {
   static const _getPubDeps = 'pub-get';
   static const _generateL10n = 'gen-l10n';
   static const _verbose = 'verbose';
+  static const _bundle = 'bundle';
 
   ArgParserUtil() {
     _parser = ArgParser();
@@ -92,6 +93,11 @@ class ArgParserUtil {
       help: 'Show verbose output.',
       defaultsTo: false,
     );
+    _parser.addFlag(
+      _bundle,
+      help: 'Build AAB (Android App Bundle). AAB files are saved locally and not uploaded.',
+      defaultsTo: false,
+    );
   }
 
   /// Parses the command-line arguments and returns a [CliOptions] object.
@@ -149,6 +155,8 @@ class ArgParserUtil {
         (config['gen-l10n'] as bool? ?? true);
     final verbose =
         argResults[_verbose] as bool? ?? (config['verbose'] as bool? ?? false);
+    final bundle =
+        argResults[_bundle] as bool? ?? (config['bundle'] as bool? ?? false);
 
     // Enhanced validation with helpful messaging
     if (provider == 'diawi' && token == null) {
@@ -202,6 +210,7 @@ class ArgParserUtil {
       getPubDeps: getPubDeps,
       generateL10n: generateL10n,
       verbose: verbose,
+      bundle: bundle,
     );
   }
 }
