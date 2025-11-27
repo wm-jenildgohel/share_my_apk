@@ -11,6 +11,9 @@ import 'package:path/path.dart' as p;
 class ConfigService {
   static const _envConfigFile = '.shareMyApk';
 
+  /// Private constructor to prevent instantiation
+  ConfigService._();
+
   /// Gets configuration from environment variables and .env files.
   ///
   /// Priority order:

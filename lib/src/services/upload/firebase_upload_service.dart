@@ -304,10 +304,16 @@ class FirebaseUploadService implements UploadService {
 
 /// Exception thrown when Firebase CLI operation fails
 class FirebaseCliException implements Exception {
+  /// The error message
   final String message;
+
+  /// Standard error output from the CLI
   final String? stderr;
+
+  /// Standard output from the CLI
   final String? stdout;
 
+  /// Creates a new Firebase CLI exception
   FirebaseCliException(this.message, {this.stderr, this.stdout});
 
   @override
