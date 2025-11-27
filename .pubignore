@@ -3,7 +3,7 @@ tool/
 *.md
 !README.md
 !CHANGELOG.md
-build/
+/build/
 .dart_tool/
 .packages
 .pub/

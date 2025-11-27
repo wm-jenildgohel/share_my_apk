@@ -1,3 +1,13 @@
+## 🐛 1.1.4-beta - The "Missing Files Fix" Release
+
+**🚑 Critical Fix**
+
+-   **🐛 Fixed Missing Files:** Resolved a critical issue where build service files (`lib/src/services/build/`) were accidentally excluded from the package due to incorrect `.pubignore` rules.
+-   **📄 Documentation:** Fixed `dartdoc` generation failure caused by missing files.
+-   **✅ Static Analysis:** Resolved static analysis errors in the published package.
+
+---
+
 ## 🎯 1.1.3-beta - The "Interactive Mode" Release
 
 **🎨 Interactive Provider Selection & Firebase Wizard**

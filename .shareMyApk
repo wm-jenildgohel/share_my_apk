@@ -10,7 +10,7 @@
 # Choose your upload provider: diawi or gofile
 # • Diawi: Great for team sharing, 70MB limit, links expire in 30 days
 # • Gofile: No size limits, permanent public links
-PROVIDER=gofile
+PROVIDER=gofile 
 
 # ================================================  
 # API TOKENS (Required for uploads)
