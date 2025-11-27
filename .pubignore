@@ -2,6 +2,7 @@
 tool/
 *.md
 !README.md
+!CHANGELOG.md
 build/
 .dart_tool/
 .packages
