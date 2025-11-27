@@ -39,8 +39,8 @@ class GofileUploadService implements UploadService {
     }
 
     final fileSize = await file.length();
-    final fileSizeMB = (fileSize / 1024 / 1024).toStringAsFixed(2);
-    _logger.info('File size: $fileSizeMB MB');
+    final fileSizeMB = fileSize / (1024 * 1024);
+    _logger.info('File size: ${fileSizeMB.toStringAsFixed(2)} MB');
 
     _logger.info('Finding optimal Gofile server...');
     final server = await getServer();
@@ -83,23 +83,24 @@ class GofileUploadService implements UploadService {
         _logger.info('Processing response...');
 
         final responseBody = await response.stream.bytesToString();
-        final jsonResponse = json.decode(responseBody);
+        final jsonResponse = json.decode(responseBody) as Map<String, dynamic>;
 
         if (jsonResponse['status'] == 'ok') {
-          final downloadPage =
-              jsonResponse['data']['downloadPage']?.toString() ?? '';
-          final directLink = jsonResponse['data']['directLink']?.toString();
+          final data = jsonResponse['data'] as Map<String, dynamic>?;
+          final downloadPage = data?['downloadPage']?.toString() ?? '';
+          final directLink = data?['directLink']?.toString();
 
           _logger.info('Upload successful!');
           _logger.info('Download page: $downloadPage');
-          if (directLink != null) {
+          if (directLink != null && directLink.isNotEmpty) {
             _logger.info('Direct link: $directLink');
           }
 
           return downloadPage;
         } else {
           final reason = jsonResponse['status'];
-          final message = jsonResponse['message'] ?? 'Unknown error';
+          final message =
+              jsonResponse['message']?.toString() ?? 'Unknown error';
           _logger.severe('Gofile.io upload failed: $reason - $message');
           throw Exception('Gofile.io upload failed: $message');
         }

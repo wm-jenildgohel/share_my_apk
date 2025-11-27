@@ -8,9 +8,10 @@ import 'package:share_my_apk/src/utils/console_logger.dart';
 class FlutterBuildService {
   final ConsoleLogger? _logger;
 
-  FlutterBuildService({
-    ConsoleLogger? logger,
-  }) : _logger = logger;
+  /// Cached regex pattern for parsing APK path from build output
+  static final RegExp _apkPathPattern = RegExp(r'Built\s+(.+\.apk)');
+
+  FlutterBuildService({ConsoleLogger? logger}) : _logger = logger;
 
   /// Builds a Flutter Android APK with comprehensive build pipeline.
   ///
@@ -168,8 +169,7 @@ class FlutterBuildService {
 
   /// Parses the build output to extract APK path
   String? _parseApkPath(String buildOutput, String? projectPath) {
-    final regex = RegExp(r'Built\s+(.+\.apk)');
-    final match = regex.firstMatch(buildOutput);
+    final match = _apkPathPattern.firstMatch(buildOutput);
 
     if (match != null) {
       final capturedPath = match.group(1);
@@ -198,13 +198,19 @@ class FlutterBuildService {
     }
 
     if (customName == null && environment == null && outputDir == null) {
-      _logger?.info('No organization options provided. Using original APK path.');
+      _logger?.info(
+        'No organization options provided. Using original APK path.',
+      );
       return originalApkPath;
     }
 
     final appInfo = _getAppInfo(projectPath);
     final fileName = _generateFileName(customName, appInfo);
-    final destDir = _createDestinationDirectory(outputDir, environment, projectPath);
+    final destDir = _createDestinationDirectory(
+      outputDir,
+      environment,
+      projectPath,
+    );
     final finalApkPath = p.join(destDir, '$fileName.apk');
 
     _logger?.info('Organizing APK to: $finalApkPath');
@@ -220,7 +226,7 @@ class FlutterBuildService {
     return finalApkPath;
   }
 
-  Map<String, String> _getAppInfo(String? projectPath) {
+  Map<String, dynamic> _getAppInfo(String? projectPath) {
     final pubspecPath = p.join(projectPath ?? '.', 'pubspec.yaml');
     final pubspecFile = File(pubspecPath);
 
@@ -232,16 +238,22 @@ class FlutterBuildService {
     try {
       final content = pubspecFile.readAsStringSync();
       final lines = content.split('\n');
-      
+
       String name = 'app';
       String version = '1.0.0';
-      
+
       for (final line in lines) {
         final trimmed = line.trim();
         if (trimmed.startsWith('name:')) {
-          name = trimmed.substring(5).trim().replaceAll(RegExp(r'["\x27]'), '');
+          name = trimmed
+              .substring(5)
+              .trim()
+              .replaceAll(RegExp(r'''["']'''), '');
         } else if (trimmed.startsWith('version:')) {
-          version = trimmed.substring(8).trim().replaceAll(RegExp(r'["\x27]'), '');
+          version = trimmed
+              .substring(8)
+              .trim()
+              .replaceAll(RegExp(r'''["']'''), '');
         }
       }
 
@@ -252,16 +264,18 @@ class FlutterBuildService {
     }
   }
 
-  String _generateFileName(String? customName, Map<String, String> appInfo) {
-    final timestamp = DateTime.now()
-        .toIso8601String()
-        .replaceAll(RegExp(r'[:.T-]'), '_')
-        .split('_')
-        .take(6)
-        .join('_');
+  String _generateFileName(String? customName, Map<String, dynamic> appInfo) {
+    final now = DateTime.now();
+    // More efficient timestamp generation
+    final timestamp =
+        '${now.year}_${now.month.toString().padLeft(2, '0')}_'
+        '${now.day.toString().padLeft(2, '0')}_'
+        '${now.hour.toString().padLeft(2, '0')}_'
+        '${now.minute.toString().padLeft(2, '0')}_'
+        '${now.second.toString().padLeft(2, '0')}';
 
-    final appName = customName ?? appInfo['name']!;
-    final version = appInfo['version']!;
+    final appName = customName ?? appInfo['name'];
+    final version = appInfo['version'];
     return '${appName}_${version}_$timestamp';
   }
 

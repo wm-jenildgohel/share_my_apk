@@ -24,7 +24,7 @@ void main() {
             () => UploadServiceFactory.create('diawi'),
             throwsA(
               isA<ArgumentError>().having(
-                (e) => e.message,
+                (ArgumentError e) => e.message,
                 'message',
                 contains('Diawi provider requires a token'),
               ),
@@ -37,7 +37,7 @@ void main() {
             () => UploadServiceFactory.create('diawi', token: ''),
             throwsA(
               isA<ArgumentError>().having(
-                (e) => e.message,
+                (ArgumentError e) => e.message,
                 'message',
                 contains('Diawi provider requires a token'),
               ),
@@ -104,7 +104,7 @@ void main() {
             () => UploadServiceFactory.create('unknown'),
             throwsA(
               isA<ArgumentError>().having(
-                (e) => e.message,
+                (ArgumentError e) => e.message,
                 'message',
                 contains('Unknown provider'),
               ),

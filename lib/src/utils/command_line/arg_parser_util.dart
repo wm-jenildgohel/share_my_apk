@@ -29,6 +29,7 @@ class ArgParserUtil {
   static const _generateL10n = 'gen-l10n';
   static const _verbose = 'verbose';
   static const _sound = 'sound';
+  static const _interactive = 'interactive';
 
   /// Creates an instance of [ArgParserUtil] and initializes the argument parser.
   ArgParserUtil() {
@@ -48,11 +49,26 @@ class ArgParserUtil {
     _parser.addOption(_diawiToken, help: 'Your Diawi API token.');
     _parser.addOption(_gofileToken, help: 'Your Gofile API token.');
     _parser.addOption(_firebaseProjectId, help: 'Firebase project ID.');
-    _parser.addOption(_firebaseAppId, help: 'Firebase app ID (format: 1:123456789:android:abcdef).');
-    _parser.addOption(_firebaseServiceAccountPath, help: 'Path to Firebase service account JSON file.');
-    _parser.addOption(_firebaseReleaseNotes, help: 'Release notes for Firebase App Distribution.');
-    _parser.addOption(_firebaseTesters, help: 'Comma-separated list of tester emails for Firebase.');
-    _parser.addOption(_firebaseGroups, help: 'Comma-separated list of tester groups for Firebase.');
+    _parser.addOption(
+      _firebaseAppId,
+      help: 'Firebase app ID (format: 1:123456789:android:abcdef).',
+    );
+    _parser.addOption(
+      _firebaseServiceAccountPath,
+      help: 'Path to Firebase service account JSON file.',
+    );
+    _parser.addOption(
+      _firebaseReleaseNotes,
+      help: 'Release notes for Firebase App Distribution.',
+    );
+    _parser.addOption(
+      _firebaseTesters,
+      help: 'Comma-separated list of tester emails for Firebase.',
+    );
+    _parser.addOption(
+      _firebaseGroups,
+      help: 'Comma-separated list of tester groups for Firebase.',
+    );
     _parser.addOption(
       _path,
       abbr: 'p',
@@ -106,6 +122,12 @@ class ArgParserUtil {
       help: 'Play sound notification after successful upload.',
       defaultsTo: true,
     );
+    _parser.addFlag(
+      _interactive,
+      abbr: 'i',
+      help: 'Show interactive prompts for provider selection.',
+      defaultsTo: true,
+    );
   }
 
   /// Parses the command-line arguments and returns a [CliOptions] object.
@@ -139,25 +161,41 @@ class ArgParserUtil {
 
     // Firebase configuration
     final firebaseProjectId =
-        argResults[_firebaseProjectId] as String? ?? config['firebase_project_id']?.toString();
+        argResults[_firebaseProjectId] as String? ??
+        config['firebase_project_id']?.toString();
     final firebaseAppId =
-        argResults[_firebaseAppId] as String? ?? config['firebase_app_id']?.toString();
+        argResults[_firebaseAppId] as String? ??
+        config['firebase_app_id']?.toString();
     final firebaseServiceAccountPath =
-        argResults[_firebaseServiceAccountPath] as String? ?? config['firebase_service_account_path']?.toString();
+        argResults[_firebaseServiceAccountPath] as String? ??
+        config['firebase_service_account_path']?.toString();
     final firebaseReleaseNotes =
-        argResults[_firebaseReleaseNotes] as String? ?? config['firebase_release_notes']?.toString();
-    
+        argResults[_firebaseReleaseNotes] as String? ??
+        config['firebase_release_notes']?.toString();
+
     // Parse comma-separated lists
     List<String>? firebaseTesters;
-    final testersString = argResults[_firebaseTesters] as String? ?? config['firebase_testers']?.toString();
+    final testersString =
+        argResults[_firebaseTesters] as String? ??
+        config['firebase_testers']?.toString();
     if (testersString != null && testersString.isNotEmpty) {
-      firebaseTesters = testersString.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      firebaseTesters = testersString
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
-    
+
     List<String>? firebaseGroups;
-    final groupsString = argResults[_firebaseGroups] as String? ?? config['firebase_groups']?.toString();
+    final groupsString =
+        argResults[_firebaseGroups] as String? ??
+        config['firebase_groups']?.toString();
     if (groupsString != null && groupsString.isNotEmpty) {
-      firebaseGroups = groupsString.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      firebaseGroups = groupsString
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
 
     String? token;
@@ -189,6 +227,9 @@ class ArgParserUtil {
         argResults[_verbose] as bool? ?? (config['verbose'] as bool? ?? false);
     final sound =
         argResults[_sound] as bool? ?? (config['sound'] as bool? ?? true);
+    final interactive =
+        argResults[_interactive] as bool? ??
+        (config['interactive'] as bool? ?? true);
 
     // Enhanced validation with helpful messaging
     if (provider == 'diawi' && token == null) {
@@ -273,6 +314,7 @@ class ArgParserUtil {
       generateL10n: generateL10n,
       verbose: verbose,
       sound: sound,
+      interactive: interactive,
     );
   }
 
@@ -318,7 +360,8 @@ JOKE OF THE DAY
       return;
     }
 
-    configFile.writeAsStringSync('''# ================================================
+    configFile.writeAsStringSync(
+      '''# ================================================
 # Share My APK Configuration File
 # ================================================
 # Edit values below or use environment variables (higher priority)
@@ -415,7 +458,8 @@ RELEASE=true
 # This config file (edit values above):
 #   share_my_apk
 # ================================================
-''');
+''',
+    );
 
     logger.info('Simple configuration created: .shareMyApk');
     logger.info('');

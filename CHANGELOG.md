@@ -1,3 +1,46 @@
+## 🎯 1.1.3-beta - The "Interactive Mode" Release
+
+**🎨 Interactive Provider Selection & Firebase Wizard**
+
+-   **🎯 Interactive Mode:** Added interactive provider selection that prompts users to choose how they want to distribute their APK
+    -   Choose between Diawi, Gofile, Firebase App Distribution, or skip upload
+    -   Smart detection: automatically skips prompts if provider is already configured
+    -   User-friendly descriptions for each provider option
+-   **🔥 Firebase Configuration Wizard:** Complete interactive setup for Firebase App Distribution
+    -   Prompts for Project ID, App ID, service account path
+    -   Interactive collection of release notes, testers, and groups
+    -   Option to save configuration for future use
+-   **⚙️ CLI Integration:** New `--interactive` / `-i` flag (enabled by default)
+    -   `--no-interactive` for non-interactive/CI-CD mode
+    -   Maintains backward compatibility with existing workflows
+-   **📄 YAML Configuration:** Added `interactive: true/false` option to configuration files
+-   **🛠️ Utility Creation:** New `prompt_util.dart` with reusable interactive prompt utilities
+    -   `askYesNo()` - Yes/no questions with defaults
+    -   `askChoice()` - Multiple choice selection
+    -   `askText()` - Validated text input
+    -   `promptForFirebaseConfig()` - Full Firebase setup wizard
+-   **📚 Documentation Updates:** Comprehensive documentation for interactive mode in README and walkthrough
+
+**Usage Examples:**
+```bash
+share_my_apk                   # Interactive mode (shows prompts if not configured)
+share_my_apk --no-interactive  # Skip all prompts, use config only
+share_my_apk --provider firebase  # Use Firebase with existing config
+```
+
+**First-Time User Experience:**
+```
+📤 How would you like to distribute your APK?
+  → 1. Diawi - Quick team sharing (70MB limit, 30-day expiry)
+    2. Gofile - Large files (no size limit, permanent links)
+    3. Firebase App Distribution - Enterprise distribution
+    4. Skip upload - Just build the APK
+
+Select option (1-4) [1]:
+```
+
+---
+
 ## 🎵 1.1.0-beta - The "Sound Notification" Release
 
 **🔔 Cross-Platform Sound Notifications**

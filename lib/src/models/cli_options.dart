@@ -114,6 +114,7 @@ class CliOptions {
   /// This ensures localization files are generated before building.
   /// Defaults to `true`.
   final bool generateL10n;
+
   /// Whether to show verbose output.
   ///
   /// When `true`, the tool will print more detailed logs for debugging purposes.
@@ -126,6 +127,13 @@ class CliOptions {
   /// has been successfully uploaded. Works cross-platform.
   /// Defaults to `true`.
   final bool sound;
+
+  /// Whether to show interactive prompts.
+  ///
+  /// When `true`, the tool will prompt for provider selection and configuration.
+  /// When `false`, uses configuration from files or arguments only.
+  /// Defaults to `true`.
+  final bool interactive;
 
   /// Creates a new [CliOptions] instance.
   ///
@@ -153,6 +161,7 @@ class CliOptions {
     this.generateL10n = true,
     this.verbose = false,
     this.sound = true,
+    this.interactive = true,
   });
 
   /// Creates a copy of this [CliOptions] with the given fields replaced.
@@ -180,6 +189,7 @@ class CliOptions {
     bool? generateL10n,
     bool? verbose,
     bool? sound,
+    bool? interactive,
   }) {
     return CliOptions(
       token: token ?? this.token,
@@ -187,7 +197,8 @@ class CliOptions {
       gofileToken: gofileToken ?? this.gofileToken,
       firebaseProjectId: firebaseProjectId ?? this.firebaseProjectId,
       firebaseAppId: firebaseAppId ?? this.firebaseAppId,
-      firebaseServiceAccountPath: firebaseServiceAccountPath ?? this.firebaseServiceAccountPath,
+      firebaseServiceAccountPath:
+          firebaseServiceAccountPath ?? this.firebaseServiceAccountPath,
       firebaseReleaseNotes: firebaseReleaseNotes ?? this.firebaseReleaseNotes,
       firebaseTesters: firebaseTesters ?? this.firebaseTesters,
       firebaseGroups: firebaseGroups ?? this.firebaseGroups,
@@ -202,6 +213,7 @@ class CliOptions {
       generateL10n: generateL10n ?? this.generateL10n,
       verbose: verbose ?? this.verbose,
       sound: sound ?? this.sound,
+      interactive: interactive ?? this.interactive,
     );
   }
 
@@ -227,7 +239,8 @@ class CliOptions {
         'getPubDeps: $getPubDeps, '
         'generateL10n: $generateL10n, '
         'verbose: $verbose, '
-        'sound: $sound'
+        'sound: $sound, '
+        'interactive: $interactive'
         ')';
   }
 }

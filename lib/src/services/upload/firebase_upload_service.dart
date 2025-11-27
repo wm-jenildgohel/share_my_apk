@@ -73,7 +73,7 @@ class FirebaseUploadService implements UploadService {
     try {
       // Validate prerequisites
       await _validatePrerequisites();
-      
+
       // Validate file exists and is APK
       await _validateApkFile(filePath);
 
@@ -144,18 +144,23 @@ class FirebaseUploadService implements UploadService {
 
     final fileSize = await file.length();
     final fileSizeMB = (fileSize / 1024 / 1024);
-    _logger.info('Uploading APK: ${path.basename(filePath)} (${fileSizeMB.toStringAsFixed(1)} MB)');
+    _logger.info(
+      'Uploading APK: ${path.basename(filePath)} (${fileSizeMB.toStringAsFixed(1)} MB)',
+    );
   }
 
   /// Set up Firebase authentication and return environment variables
   Future<Map<String, String>> _setupAuthentication() async {
     final environment = Map<String, String>.from(Platform.environment);
-    
+
     if (serviceAccountPath != null && serviceAccountPath!.isNotEmpty) {
       // Use service account authentication
       final serviceAccountFile = File(serviceAccountPath!);
       if (!await serviceAccountFile.exists()) {
-        throw FileSystemException('Service account file not found', serviceAccountPath);
+        throw FileSystemException(
+          'Service account file not found',
+          serviceAccountPath,
+        );
       }
 
       // Set environment variable for Firebase CLI
@@ -163,16 +168,21 @@ class FirebaseUploadService implements UploadService {
       _logger.info('Using service account authentication');
     } else {
       // Check if user is logged in to Firebase or has GOOGLE_APPLICATION_CREDENTIALS
-      final hasCredentials = Platform.environment['GOOGLE_APPLICATION_CREDENTIALS'] != null;
-      
+      final hasCredentials =
+          Platform.environment['GOOGLE_APPLICATION_CREDENTIALS'] != null;
+
       try {
-        final result = await Process.run('firebase', ['projects:list'], environment: environment);
+        final result = await Process.run('firebase', [
+          'projects:list',
+        ], environment: environment);
         if (result.exitCode != 0 && !hasCredentials) {
           throw Exception('Not authenticated with Firebase');
         }
-        
+
         if (hasCredentials) {
-          _logger.info('Using GOOGLE_APPLICATION_CREDENTIALS environment variable');
+          _logger.info(
+            'Using GOOGLE_APPLICATION_CREDENTIALS environment variable',
+          );
         } else {
           _logger.info('Using Firebase login authentication');
         }
@@ -186,12 +196,15 @@ class FirebaseUploadService implements UploadService {
         );
       }
     }
-    
+
     return environment;
   }
 
   /// Upload APK using Firebase CLI
-  Future<String> _uploadWithFirebaseCli(String filePath, Map<String, String> environment) async {
+  Future<String> _uploadWithFirebaseCli(
+    String filePath,
+    Map<String, String> environment,
+  ) async {
     final arguments = <String>[
       'appdistribution:distribute',
       filePath,
@@ -224,7 +237,7 @@ class FirebaseUploadService implements UploadService {
     if (result.exitCode != 0) {
       final error = result.stderr.toString();
       final output = result.stdout.toString();
-      
+
       _logger.severe('Firebase CLI error output: $error');
       _logger.severe('Firebase CLI stdout: $output');
 
@@ -238,7 +251,8 @@ class FirebaseUploadService implements UploadService {
           '4. You have permission to access this app\n\n'
           'Firebase CLI Error: $error',
         );
-      } else if (error.contains('permission') || error.contains('unauthorized')) {
+      } else if (error.contains('permission') ||
+          error.contains('unauthorized')) {
         throw Exception(
           'Permission denied. Please ensure:\n'
           '1. You have Firebase App Distribution Admin role\n'
@@ -264,11 +278,13 @@ class FirebaseUploadService implements UploadService {
     // Firebase CLI typically outputs something like:
     // "View this release in the Firebase Console: https://console.firebase.google.com/..."
     // or includes the download URL directly
-    
+
     final lines = output.split('\n');
     for (final line in lines) {
       if (line.contains('console.firebase.google.com')) {
-        final match = RegExp(r'https://console\.firebase\.google\.com[^\s]*').firstMatch(line);
+        final match = RegExp(
+          r'https://console\.firebase\.google\.com[^\s]*',
+        ).firstMatch(line);
         if (match != null) {
           return match.group(0)!;
         }
@@ -284,7 +300,6 @@ class FirebaseUploadService implements UploadService {
     // If no URL found, return Firebase Console link
     return 'https://console.firebase.google.com/project/$projectId/appdistribution';
   }
-
 }
 
 /// Exception thrown when Firebase CLI operation fails

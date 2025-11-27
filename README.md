@@ -89,6 +89,39 @@
 
 ---
 
+## 🎯 Interactive Mode (NEW!)
+
+**✨ Never Remember Tokens Again!**
+
+Share My APK now features **interactive provider selection** - just run the command and choose your upload method!
+
+```bash
+$ share_my_apk
+
+# ... APK builds ...
+
+📤 How would you like to distribute your APK?
+  → 1. Diawi - Quick team sharing (70MB limit, 30-day expiry)
+    2. Gofile - Large files (no size limit, permanent links)
+    3. Firebase App Distribution - Enterprise distribution with tester management
+    4. Skip upload - Just build the APK
+
+Select option (1-4) [1]: 3
+
+# Interactive Firebase setup wizard appears!
+🔑 Firebase Project ID: my-project
+📱 Firebase App ID: 1:123:android:abc
+...
+```
+
+**🎯 Features:**
+- **Smart Detection** - Automatically skips prompts if already configured
+- **Full Firebase Wizard** - Collects all Firebase settings interactively
+- **Save Configuration** - Optional config save for future use
+- **Non-Interactive Mode** - Use `--no-interactive` for CI/CD
+
+---
+
 ## Usage
 
 This section provides a quick overview of how to use `share_my_apk`. For more detailed examples, refer to the [Usage Examples](#-usage-examples) section.
@@ -250,6 +283,10 @@ void main() async {
 | `--no-pub-get` | - | Skip flutter pub get | `share_my_apk --no-pub-get` |
 | `--gen-l10n` | - | Generate localizations (default) | `share_my_apk --gen-l10n` |
 | `--no-gen-l10n` | - | Skip localization generation | `share_my_apk --no-gen-l10n` |
+| `--interactive` | `-i` | Show interactive prompts (default) | `share_my_apk --interactive` |
+| `--no-interactive` | - | Disable interactive prompts | `share_my_apk --no-interactive` |
+| `--sound` | `-s` | Play sound notification (default) | `share_my_apk --sound` |
+| `--no-sound` | - | Disable sound notification | `share_my_apk --no-sound` |
 
 
 

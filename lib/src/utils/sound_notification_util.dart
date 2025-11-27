@@ -33,7 +33,9 @@ class SoundNotificationUtil {
     // Try modern notification system first
     Process.run('pactl', ['play-sample', 'complete']).catchError((_) {
       // Fallback to alternative notification
-      return Process.run('canberra-gtk-play', ['-i', 'complete']).catchError((_) {
+      return Process.run('canberra-gtk-play', ['-i', 'complete']).catchError((
+        _,
+      ) {
         // Last resort - try system bell
         return Process.run('pactl', ['play-sample', 'bell']);
       });
@@ -42,7 +44,9 @@ class SoundNotificationUtil {
 
   static void _playMacSound() {
     // Use built-in pleasant system sound
-    Process.run('afplay', ['/System/Library/Sounds/Glass.aiff']).catchError((_) {
+    Process.run('afplay', ['/System/Library/Sounds/Glass.aiff']).catchError((
+      _,
+    ) {
       // Fallback to alternative system sound
       return Process.run('afplay', ['/System/Library/Sounds/Ping.aiff']);
     });

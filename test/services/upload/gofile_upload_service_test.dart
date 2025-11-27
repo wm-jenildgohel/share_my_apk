@@ -28,7 +28,7 @@ void main() {
           () => service.upload('/non/existent/file.apk'),
           throwsA(
             isA<Exception>().having(
-              (e) => e.toString(),
+              (Exception e) => e.toString(),
               'message',
               contains('File not found'),
             ),

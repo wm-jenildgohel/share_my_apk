@@ -10,6 +10,9 @@ class DiawiUploadService implements UploadService {
   final String apiToken;
   static final Logger _logger = Logger('DiawiUploadService');
 
+  /// Diawi's maximum file size limit in bytes (70 MB)
+  static const int maxFileSizeBytes = 70 * 1024 * 1024;
+
   /// Creates a new [DiawiUploadService].
   DiawiUploadService(this.apiToken);
 
@@ -24,10 +27,10 @@ class DiawiUploadService implements UploadService {
     }
 
     final fileSize = await file.length();
-    final fileSizeMB = (fileSize / 1024 / 1024).toStringAsFixed(2);
-    _logger.info('File size: $fileSizeMB MB');
+    final fileSizeMB = fileSize / (1024 * 1024);
+    _logger.info('File size: ${fileSizeMB.toStringAsFixed(2)} MB');
 
-    if (fileSize > 70 * 1024 * 1024) {
+    if (fileSize > maxFileSizeBytes) {
       _logger.warning('File size exceeds Diawi\'s 70MB limit!');
       _logger.info('Consider using Gofile.io for larger files');
     }
@@ -104,17 +107,21 @@ class DiawiUploadService implements UploadService {
     }
   }
 
+  /// Maximum number of polling attempts
+  static const int _maxPollingAttempts = 30;
+
+  /// Poll interval between status checks
+  static const Duration _pollInterval = Duration(seconds: 5);
+
   Future<String> _pollJobStatus(String job) async {
     _logger.info('Monitoring processing status for job: $job');
 
-    const maxAttempts = 30;
-    const pollInterval = Duration(seconds: 5);
-    final totalTimeoutMinutes = (maxAttempts * pollInterval.inSeconds / 60)
-        .toStringAsFixed(1);
+    final totalTimeoutMinutes =
+        (_maxPollingAttempts * _pollInterval.inSeconds / 60).toStringAsFixed(1);
 
     _logger.info('Maximum wait time: $totalTimeoutMinutes minutes');
 
-    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+    for (int attempt = 0; attempt < _maxPollingAttempts; attempt++) {
       try {
         final response = await http.get(
           Uri.parse('https://upload.diawi.com/status?token=$apiToken&job=$job'),
@@ -145,10 +152,12 @@ class DiawiUploadService implements UploadService {
             throw Exception('Diawi processing failed: $errorMessage');
           } else {
             // Still processing, continue polling
-            final elapsedMinutes = ((attempt + 1) * pollInterval.inSeconds / 60)
-                .toStringAsFixed(1);
+            final elapsedMinutes =
+                ((attempt + 1) * _pollInterval.inSeconds / 60).toStringAsFixed(
+                  1,
+                );
             _logger.info(
-              'Still processing... ($elapsedMinutes min elapsed, attempt ${attempt + 1}/$maxAttempts)',
+              'Still processing... ($elapsedMinutes min elapsed, attempt ${attempt + 1}/$_maxPollingAttempts)',
             );
 
             if (attempt == 10) {
@@ -161,13 +170,13 @@ class DiawiUploadService implements UploadService {
               );
             }
 
-            await Future<void>.delayed(pollInterval);
+            await Future<void>.delayed(_pollInterval);
           }
         } else {
           _logger.warning(
             'Status check failed with HTTP ${response.statusCode} (attempt ${attempt + 1})',
           );
-          await Future<void>.delayed(pollInterval);
+          await Future<void>.delayed(_pollInterval);
         }
       } catch (e) {
         _logger.warning(
@@ -178,7 +187,7 @@ class DiawiUploadService implements UploadService {
             'Persistent connection issues - check your internet connection',
           );
         }
-        await Future<void>.delayed(pollInterval);
+        await Future<void>.delayed(_pollInterval);
       }
     }
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:share_my_apk/share_my_apk.dart';
 import 'package:share_my_apk/src/utils/console_logger.dart';
 import 'package:share_my_apk/src/utils/message_util.dart' as message_util;
+import 'package:share_my_apk/src/utils/prompt_util.dart';
 import 'package:share_my_apk/src/utils/sound_notification_util.dart';
 import 'package:share_my_apk/src/version.dart';
 
@@ -36,51 +37,20 @@ class CliRunner {
 
       final apkFile = File(apkPath);
       final fileSize = await apkFile.length();
-      final fileSizeMB = (fileSize / 1024 / 1024);
-      var provider = options.provider;
-      String? token;
 
-      _logger.info('APK Information:');
-      _logger.info('   • File: ${apkFile.path.split('/').last}');
-      _logger.info(
-        '   • Size: ${fileSizeMB.toStringAsFixed(2)} MB ($fileSize bytes)',
-      );
-      _logger.info('   • Location: $apkPath');
+      // Display file information
+      _displayFileInfo(apkFile, fileSize);
 
-      if (provider == 'diawi' && fileSize > 70 * 1024 * 1024) {
-        _logger.warning(
-          'Smart Provider Switch: APK size (${fileSizeMB.toStringAsFixed(1)} MB) exceeds Diawi\'s 70MB limit.',
-        );
-        _logger.info(
-          'Automatically switching to Gofile.io for better compatibility...',
-        );
-        provider = 'gofile';
-        token = options.gofileToken;
-      } else if (provider == 'diawi') {
-        token = options.diawiToken;
-        _logger.info('Using Diawi (great for team sharing, 70MB limit)');
-        if (token == null) {
-          _logger.warning(
-            'No Diawi token found. Get one at: https://dashboard.diawi.com/profile/api',
-          );
-        }
-      } else if (provider == 'gofile') {
-        token = options.gofileToken;
-        _logger.info('Using Gofile.io (no size limits, requires token)');
-        if (token == null) {
-          _logger.warning(
-            'No Gofile token found. Get one at: https://gofile.io/api',
-          );
-        }
-      } else if (provider == 'firebase') {
-        _logger.info('Using Firebase App Distribution (enterprise-grade distribution)');
-        if (options.firebaseProjectId == null) {
-          _logger.warning('No Firebase project ID provided');
-        }
-        if (options.firebaseAppId == null) {
-          _logger.warning('No Firebase app ID provided');
-        }
+      // Interactive provider selection or use configured provider
+      var effectiveOptions = options;
+      if (options.interactive && !_hasProviderConfigured(options)) {
+        effectiveOptions = await _promptForProvider(options);
       }
+
+      // Select and configure upload provider
+      final providerConfig = _selectUploadProvider(effectiveOptions, fileSize);
+      final provider = providerConfig['provider'] as String;
+      final token = providerConfig['token'] as String?;
 
       final uploader = UploadServiceFactory.create(
         provider,
@@ -95,7 +65,9 @@ class CliRunner {
 
       _logger.info('Starting Upload Process...');
       _logger.info('   • Provider: $provider');
-      _logger.info('   • File size: ${fileSizeMB.toStringAsFixed(2)} MB');
+      _logger.info(
+        '   • File size: ${(fileSize / (1024 * 1024)).toStringAsFixed(2)} MB',
+      );
       if (token != null) {
         _logger.info('   • Authentication: Token provided');
       } else {
@@ -139,15 +111,17 @@ class CliRunner {
     _logger.info('');
   }
 
-
   void _showConfigurationInfo(CliOptions options) {
     _logger.info('Configuration loaded:');
 
     final envConfigFile = File('.shareMyApk');
-    final homeConfigFile = File('${Platform.environment['HOME'] ?? '.'}/.shareMyApk');
-    final hasEnvVars = Platform.environment.containsKey('DIAWI_TOKEN') || 
-                       Platform.environment.containsKey('GOFILE_TOKEN') ||
-                       Platform.environment.containsKey('FIREBASE_PROJECT_ID');
+    final homeConfigFile = File(
+      '${Platform.environment['HOME'] ?? '.'}/.shareMyApk',
+    );
+    final hasEnvVars =
+        Platform.environment.containsKey('DIAWI_TOKEN') ||
+        Platform.environment.containsKey('GOFILE_TOKEN') ||
+        Platform.environment.containsKey('FIREBASE_PROJECT_ID');
 
     if (hasEnvVars) {
       _logger.info('   • Source: Environment variables');
@@ -181,13 +155,153 @@ class CliRunner {
         _logger.info('   • Firebase app: ${options.firebaseAppId}');
       }
       if (options.firebaseTesters?.isNotEmpty == true) {
-        _logger.info('   • Firebase testers: ${options.firebaseTesters!.length} emails');
+        _logger.info(
+          '   • Firebase testers: ${options.firebaseTesters!.length} emails',
+        );
       }
       if (options.firebaseGroups?.isNotEmpty == true) {
-        _logger.info('   • Firebase groups: ${options.firebaseGroups!.join(", ")}');
+        _logger.info(
+          '   • Firebase groups: ${options.firebaseGroups!.join(", ")}',
+        );
       }
     }
 
     stdout.writeln('');
+  }
+
+  /// Displays file information including size and location
+  void _displayFileInfo(File apkFile, int fileSize) {
+    final fileSizeMB = fileSize / (1024 * 1024);
+    _logger.info('APK Information:');
+    _logger.info('   • File: ${apkFile.path.split('/').last}');
+    _logger.info(
+      '   • Size: ${fileSizeMB.toStringAsFixed(2)} MB ($fileSize bytes)',
+    );
+    _logger.info('   • Location: ${apkFile.path}');
+  }
+
+  /// Selects the appropriate upload provider based on file size and options
+  /// Returns a map with 'provider' and 'token' keys
+  Map<String, dynamic> _selectUploadProvider(CliOptions options, int fileSize) {
+    var provider = options.provider;
+    String? token;
+    final fileSizeMB = fileSize / (1024 * 1024);
+
+    // Smart provider switching for large files
+    if (provider == 'diawi' && fileSize > 70 * 1024 * 1024) {
+      _logger.warning(
+        'Smart Provider Switch: APK size (${fileSizeMB.toStringAsFixed(1)} MB) exceeds Diawi\'s 70MB limit.',
+      );
+      _logger.info(
+        'Automatically switching to Gofile.io for better compatibility...',
+      );
+      provider = 'gofile';
+      token = options.gofileToken;
+    } else if (provider == 'diawi') {
+      token = options.diawiToken;
+      _logger.info('Using Diawi (great for team sharing, 70MB limit)');
+      if (token == null) {
+        _logger.warning(
+          'No Diawi token found. Get one at: https://dashboard.diawi.com/profile/api',
+        );
+      }
+    } else if (provider == 'gofile') {
+      token = options.gofileToken;
+      _logger.info('Using Gofile.io (no size limits, requires token)');
+      if (token == null) {
+        _logger.warning(
+          'No Gofile token found. Get one at: https://gofile.io/api',
+        );
+      }
+    } else if (provider == 'firebase') {
+      _logger.info(
+        'Using Firebase App Distribution (enterprise-grade distribution)',
+      );
+      if (options.firebaseProjectId == null) {
+        _logger.warning('No Firebase project ID provided');
+      }
+      if (options.firebaseAppId == null) {
+        _logger.warning('No Firebase app ID provided');
+      }
+    }
+
+    return {'provider': provider, 'token': token};
+  }
+
+  /// Checks if a provider has been explicitly configured
+  bool _hasProviderConfigured(CliOptions options) {
+    // If diawi token is set
+    if (options.diawiToken != null && options.diawiToken!.isNotEmpty) {
+      return true;
+    }
+    // If gofile token is set
+    if (options.gofileToken != null && options.gofileToken!.isNotEmpty) {
+      return true;
+    }
+    // If Firebase is configured
+    if (options.firebaseProjectId != null && options.firebaseAppId != null) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Prompts user to select upload provider interactively
+  Future<CliOptions> _promptForProvider(CliOptions options) async {
+    print('\n');
+    final choice = PromptUtil.askChoice(
+      '📤 How would you like to distribute your APK?',
+      [
+        'Diawi - Quick team sharing (70MB limit, 30-day expiry)',
+        'Gofile - Large files (no size limit, permanent links)',
+        'Firebase App Distribution - Enterprise distribution with tester management',
+        'Skip upload - Just build the APK',
+      ],
+      defaultIndex: 0,
+    );
+
+    switch (choice) {
+      case 0: // Diawi
+        if (options.diawiToken == null || options.diawiToken!.isEmpty) {
+          print('\n🔑 Diawi requires an API token');
+          print('Get your token at: https://dashboard.diawi.com/profile/api\n');
+          final token = PromptUtil.askText('Diawi API token');
+          return options.copyWith(provider: 'diawi', diawiToken: token);
+        }
+        return options.copyWith(provider: 'diawi');
+
+      case 1: // Gofile
+        if (options.gofileToken == null || options.gofileToken!.isEmpty) {
+          print('\n🔑 Gofile requires an API token');
+          print('Get your token at: https://gofile.io/api\n');
+          final token = PromptUtil.askText('Gofile API token');
+          return options.copyWith(provider: 'gofile', gofileToken: token);
+        }
+        return options.copyWith(provider: 'gofile');
+
+      case 2: // Firebase
+        final firebaseConfig = PromptUtil.promptForFirebaseConfig();
+
+        // Save config if user requested
+        if (firebaseConfig['saveConfig'] == true) {
+          ConfigService.saveFirebaseConfig(firebaseConfig);
+          _logger.info('✓ Firebase configuration saved to .shareMyApk');
+        }
+
+        return options.copyWith(
+          provider: 'firebase',
+          firebaseProjectId: firebaseConfig['projectId'] as String,
+          firebaseAppId: firebaseConfig['appId'] as String,
+          firebaseServiceAccountPath:
+              firebaseConfig['serviceAccountPath'] as String?,
+          firebaseReleaseNotes: firebaseConfig['releaseNotes'] as String?,
+          firebaseTesters: firebaseConfig['testers'] as List<String>?,
+          firebaseGroups: firebaseConfig['groups'] as List<String>?,
+        );
+
+      case 3: // Skip
+      default:
+        print('\n✓ APK built successfully. Upload skipped.');
+        exit(0);
+    }
   }
 }
