@@ -240,7 +240,8 @@ class CliRunner {
       return true;
     }
     // If Firebase is configured
-    if (options.firebaseProjectId != null && options.firebaseAppId != null) {
+    // If Firebase is configured
+    if (options.firebaseAppId != null && options.firebaseAppId!.isNotEmpty) {
       return true;
     }
     return false;
