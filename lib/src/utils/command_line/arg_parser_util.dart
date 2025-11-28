@@ -362,102 +362,72 @@ JOKE OF THE DAY
 
     configFile.writeAsStringSync(
       '''# ================================================
-# Share My APK Configuration File
+# Share My APK - Simple Configuration
 # ================================================
-# Edit values below or use environment variables (higher priority)
-# Remove '#' to uncomment and activate settings
+# GOAL: Make APK sharing FAST and EASY!
 
 # ================================================
-# UPLOAD PROVIDER (Required)
+# UPLOAD PROVIDER (Pick one: diawi, gofile, firebase)
 # ================================================
-# Choose your upload provider: diawi, gofile, or firebase
-# • Diawi: Great for team sharing, 70MB limit, links expire in 30 days
-# • Gofile: No size limits, permanent public links
-# • Firebase: Enterprise-grade distribution with tester management
 PROVIDER=gofile
 
-# ================================================  
-# API TOKENS (Required for uploads)
 # ================================================
-# Different providers have different requirements
+# PROVIDER TOKENS
+# ================================================
 
-# Diawi API Token
-# Get yours at: https://dashboard.diawi.com/profile/api
-# DIAWI_TOKEN=your_diawi_token_here
+# Gofile (EASIEST - No setup needed!)
+# Get token at: https://gofile.io/myProfile (optional)
+# GOFILE_TOKEN=your_token_here
 
-# Gofile API Token  
-# Get yours at: https://gofile.io/api
-# GOFILE_TOKEN=your_gofile_token_here
+# Diawi (Simple - Good for teams, 70MB limit)
+# Get token at: https://dashboard.diawi.com/profile/api
+# DIAWI_TOKEN=your_token_here
 
-# Firebase App Distribution Configuration
-# Get project info from Firebase Console > Project Settings
-# FIREBASE_PROJECT_ID=your-firebase-project
+# ================================================
+# FIREBASE (Advanced - Only if you already use Firebase)
+# ================================================
+# Requires: npm install -g firebase-tools
+# Then: firebase login
+#
 # FIREBASE_APP_ID=1:123456789:android:abcdef
-# FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json
-# FIREBASE_RELEASE_NOTES=New beta release with bug fixes
-# FIREBASE_TESTERS=tester1@example.com,tester2@example.com
-# FIREBASE_GROUPS=internal-team,beta-testers
+# FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service.json
+#
+# Optional:
+# FIREBASE_RELEASE_NOTES=Latest beta build
+# FIREBASE_TESTERS=user1@gmail.com,user2@gmail.com
+# FIREBASE_GROUPS=beta-testers,internal
 
 # ================================================
-# BUILD CONFIGURATION
+# BUILD SETTINGS
 # ================================================
-# Build mode: true for release (optimized), false for debug
 RELEASE=true
 
-# Flutter project path (default: current directory)
-# PATH=.
+# Custom APK name (optional)
+# NAME=MyApp
 
-# ================================================
-# FILE ORGANIZATION
-# ================================================
-# Custom APK name (without .apk extension)
-# Example: "MyApp_v2.0" becomes "MyApp_v2.0_2025_01_28_12_30_45.apk"
-# NAME=MyApp_Production
-
-# Environment folder for organizing builds
-# Creates: output-dir/environment/your-apk.apk
-# Examples: dev, staging, prod, beta
-# ENVIRONMENT=prod
-
-# Custom output directory for APKs
-# Default: Flutter's build/app/outputs/apk/release
+# Output directory (optional)
 # OUTPUT_DIR=builds/releases
 
-# ================================================
-# BUILD PIPELINE OPTIONS
-# ================================================
-# Run flutter clean before building (recommended)
-# CLEAN=true
-
-# Run flutter pub get before building (recommended)  
-# PUB_GET=true
-
-# Generate localizations if l10n.yaml exists (recommended)
-# GEN_L10N=true
-
-# Show verbose build output
-# VERBOSE=false
-
-# Play sound notification after successful upload
-# SOUND=true
+# Environment folder (optional)
+# ENVIRONMENT=prod
 
 # ================================================
-# USAGE EXAMPLES
+# OPTIONAL TWEAKS
 # ================================================
-# Environment variables (highest priority):
-#   export DIAWI_TOKEN="your_token"
-#   export GOFILE_TOKEN="your_token"
-#   export FIREBASE_PROJECT_ID="your-project"
-#   share_my_apk
+# CLEAN=true        # Run flutter clean before build
+# PUB_GET=true      # Run flutter pub get
+# GEN_L10N=true     # Generate localizations
+# SOUND=true        # Play sound when done
+# VERBOSE=false     # Show detailed output
+
+# ================================================
+# QUICK START
+# ================================================
+# 1. Set your PROVIDER above (gofile is easiest!)
+# 2. Add your token if needed
+# 3. Run: share_my_apk
 #
-# Command line (overrides this file):
-#   share_my_apk --diawi-token YOUR_TOKEN
-#   share_my_apk --gofile-token YOUR_TOKEN --name MyApp_Beta
-#   share_my_apk --provider firebase --firebase-project-id PROJECT --firebase-app-id APP_ID
-#
-# This config file (edit values above):
-#   share_my_apk
-# ================================================
+# That's it! 🚀
 ''',
     );
 
