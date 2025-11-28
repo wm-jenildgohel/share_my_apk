@@ -1,6 +1,6 @@
 name: share_my_apk
-description: "CLI tool for building and uploading Android APKs."
-version: 1.1.4-beta
+description: "Automated Flutter APK build and upload tool supporting Diawi, Gofile.io, and Firebase App Distribution with comprehensive build pipeline management and smart provider switching."
+version: 1.2.0-beta
 
 # Package metadata for pub.dev
 homepage: https://github.com/wm-jenildgohel/share_my_apk
@@ -23,7 +23,7 @@ platforms:
            # Not compatible with WASM due to dart:io usage.
 
 environment:
-  sdk: ^3.8.1
+  sdk: '>=3.8.1 <4.0.0'
 
 dependencies:
   args: ^2.7.0
