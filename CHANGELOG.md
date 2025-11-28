@@ -1,3 +1,24 @@
+## 1.2.1-beta
+
+**Simplified Configuration Release**
+
+### Changed
+- **BREAKING:** Simplified Firebase configuration - removed `firebase_project_id` requirement
+- Firebase now only requires `FIREBASE_APP_ID` (project ID is auto-extracted or optional)
+- Updated `.shareMyApk` config template with clearer, simpler structure
+- Improved configuration comments with "EASIEST", "Simple", "Advanced" labels
+- Better error messages for Firebase setup
+
+### Fixed
+- Firebase provider no longer requires project ID (CLI doesn't need it)
+- Project ID is now auto-extracted from App ID for console URLs
+- Clearer setup instructions in error messages
+
+**Migration from 1.2.0-beta:**
+If using Firebase, remove `FIREBASE_PROJECT_ID` from config (no longer needed).
+
+---
+
 ## 1.2.0-beta
 
 **Beta Release - Pending Testing**

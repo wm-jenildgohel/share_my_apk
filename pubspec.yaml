@@ -1,6 +1,6 @@
 name: share_my_apk
 description: "Automated Flutter APK build and upload tool supporting Diawi, Gofile.io, and Firebase App Distribution with comprehensive build pipeline management and smart provider switching."
-version: 1.2.0-beta
+version: 1.2.1-beta
 
 # Package metadata for pub.dev
 homepage: https://github.com/wm-jenildgohel/share_my_apk

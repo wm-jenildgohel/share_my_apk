@@ -36,8 +36,8 @@ import 'package:share_my_apk/src/services/upload/upload_service.dart';
 class FirebaseUploadService implements UploadService {
   static final Logger _logger = Logger('FirebaseUploadService');
 
-  /// Firebase project ID
-  final String projectId;
+  /// Firebase project ID (optional - only used for fallback console URL)
+  final String? projectId;
 
   /// Firebase Android app ID (format: 1:123456789:android:abcdef)
   final String appId;
@@ -56,7 +56,7 @@ class FirebaseUploadService implements UploadService {
 
   /// Creates a new Firebase App Distribution upload service.
   FirebaseUploadService({
-    required this.projectId,
+    this.projectId,
     required this.appId,
     this.serviceAccountPath,
     this.releaseNotes,
@@ -93,10 +93,6 @@ class FirebaseUploadService implements UploadService {
 
   /// Validate Firebase configuration
   void _validateConfiguration() {
-    if (projectId.isEmpty) {
-      throw ArgumentError('Firebase project ID cannot be empty');
-    }
-
     // Validate Android app ID format
     final androidAppIdPattern = RegExp(r'^1:\d+:android:[a-f0-9]+$');
     if (!androidAppIdPattern.hasMatch(appId)) {
@@ -297,8 +293,18 @@ class FirebaseUploadService implements UploadService {
       }
     }
 
-    // If no URL found, return Firebase Console link
-    return 'https://console.firebase.google.com/project/$projectId/appdistribution';
+    // If no URL found, return Firebase Console link (if project ID available)
+    if (projectId != null && projectId!.isNotEmpty) {
+      return 'https://console.firebase.google.com/project/$projectId/appdistribution';
+    }
+
+    // Extract project ID from app ID (format: 1:PROJECT_NUMBER:android:APP_ID)
+    final parts = appId.split(':');
+    if (parts.length >= 2) {
+      return 'https://console.firebase.google.com/project/${parts[1]}/appdistribution';
+    }
+
+    return 'https://console.firebase.google.com';
   }
 }
 

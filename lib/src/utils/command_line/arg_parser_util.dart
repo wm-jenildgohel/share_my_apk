@@ -246,24 +246,18 @@ class ArgParserUtil {
     }
 
     if (provider == 'firebase') {
-      if (firebaseProjectId == null || firebaseProjectId.isEmpty) {
-        throw ArgumentError(
-          'Firebase App Distribution requires a project ID!\n\n'
-          'Quick Setup:\n'
-          '1. Get your project ID from Firebase Console\n'
-          '2. Use: share_my_apk --provider firebase --firebase-project-id YOUR_PROJECT_ID --firebase-app-id YOUR_APP_ID\n'
-          '3. Or add to share_my_apk.yaml:\n'
-          '   firebase_project_id: YOUR_PROJECT_ID\n'
-          '   firebase_app_id: YOUR_APP_ID\n\n'
-          'Available options:\n${_parser.usage}',
-        );
-      }
+      // Only Firebase App ID is required - project ID is optional
       if (firebaseAppId == null || firebaseAppId.isEmpty) {
         throw ArgumentError(
           'Firebase App Distribution requires an app ID!\n\n'
-          'Format: 1:123456789:android:abcdef\n'
-          'Find it in Firebase Console > Project Settings > General\n\n'
-          'Usage: share_my_apk --provider firebase --firebase-app-id YOUR_APP_ID\n\n'
+          'Quick Setup:\n'
+          '1. Get your app ID from Firebase Console > Project Settings > General\n'
+          '2. Format: 1:123456789:android:abcdef\n'
+          '3. Add to .shareMyApk:\n'
+          '   FIREBASE_APP_ID=1:123456789:android:abcdef\n\n'
+          'Optional Authentication:\n'
+          '   - Run: firebase login (easiest for local dev)\n'
+          '   - Or set: FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service.json\n\n'
           'Available options:\n${_parser.usage}',
         );
       }
