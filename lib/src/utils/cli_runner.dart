@@ -66,6 +66,10 @@ class CliRunner {
               '⚠️  No Diawi token found. Get one at: https://dashboard.diawi.com/profile/api',
             );
           }
+        } else if (provider == 'firebase') {
+          _logger.info(
+            '🎯 Using Firebase App Distribution (2GB limit, beta testing platform)',
+          );
         } else {
           token = options.gofileToken;
           _logger.info('🎯 Using Gofile.io (no size limits, public access)');
@@ -75,12 +79,36 @@ class CliRunner {
         }
       }
 
-      final uploader = UploadServiceFactory.create(provider, token: token);
+      final uploader = UploadServiceFactory.create(
+        provider,
+        token: token,
+        firebaseAppId: options.firebaseAppId,
+        firebaseServiceAccountPath: options.firebaseServiceAccountPath,
+        firebaseTesterGroups: options.firebaseTesterGroups,
+        firebaseReleaseNotes: options.firebaseReleaseNotes,
+      );
 
       _logger.info('🚀 Starting Upload Process...');
       _logger.info('   • Provider: $provider');
       _logger.info('   • File size: ${fileSizeMB.toStringAsFixed(2)} MB');
-      if (token != null) {
+
+      if (provider == 'firebase') {
+        _logger.info('   • App ID: ${options.firebaseAppId}');
+        if (options.firebaseServiceAccountPath != null) {
+          _logger.info('   • Authentication: 🔑 Service account provided');
+        } else {
+          _logger.info('   • Authentication: 👤 Using existing Firebase login');
+        }
+        if (options.firebaseTesterGroups != null &&
+            options.firebaseTesterGroups!.isNotEmpty) {
+          _logger.info(
+            '   • Tester groups: ${options.firebaseTesterGroups!.join(", ")}',
+          );
+        }
+        if (options.firebaseReleaseNotes != null) {
+          _logger.info('   • Release notes: ✅ Included');
+        }
+      } else if (token != null) {
         _logger.info('   • Authentication: ✅ Token provided');
       } else {
         _logger.info('   • Authentication: 📂 Anonymous upload');

@@ -13,6 +13,10 @@ class ArgParserUtil {
   static const _init = 'init';
   static const _diawiToken = 'diawi-token';
   static const _gofileToken = 'gofile-token';
+  static const _firebaseAppId = 'firebase-app-id';
+  static const _firebaseServiceAccount = 'firebase-service-account';
+  static const _firebaseTesterGroups = 'firebase-tester-groups';
+  static const _firebaseReleaseNotes = 'firebase-release-notes';
   static const _path = 'path';
   static const _release = 'release';
   static const _provider = 'provider';
@@ -40,11 +44,27 @@ class ArgParserUtil {
     _parser.addOption(
       _provider,
       help: 'The upload provider to use.',
-      allowed: ['diawi', 'gofile'],
+      allowed: ['diawi', 'gofile', 'firebase'],
       defaultsTo: 'diawi',
     );
     _parser.addOption(_diawiToken, help: 'Your Diawi API token.');
     _parser.addOption(_gofileToken, help: 'Your Gofile API token.');
+    _parser.addOption(
+      _firebaseAppId,
+      help: 'Firebase App ID (format: 1:123:android:abc).',
+    );
+    _parser.addOption(
+      _firebaseServiceAccount,
+      help: 'Path to Firebase service account JSON file (optional).',
+    );
+    _parser.addOption(
+      _firebaseTesterGroups,
+      help: 'Comma-separated list of Firebase tester groups.',
+    );
+    _parser.addOption(
+      _firebaseReleaseNotes,
+      help: 'Release notes for Firebase App Distribution.',
+    );
     _parser.addOption(
       _path,
       abbr: 'p',
@@ -150,6 +170,37 @@ class ArgParserUtil {
     final verbose =
         argResults[_verbose] as bool? ?? (config['verbose'] as bool? ?? false);
 
+    // Parse Firebase configuration
+    final firebaseConfig = config['firebase'] as Map<String, dynamic>?;
+
+    final firebaseAppId =
+        argResults[_firebaseAppId] as String? ??
+        firebaseConfig?['app_id']?.toString();
+
+    final firebaseServiceAccountPath =
+        argResults[_firebaseServiceAccount] as String? ??
+        firebaseConfig?['service_account_path']?.toString();
+
+    final firebaseTesterGroupsStr =
+        argResults[_firebaseTesterGroups] as String?;
+
+    List<String>? firebaseTesterGroups;
+    if (firebaseTesterGroupsStr != null && firebaseTesterGroupsStr.isNotEmpty) {
+      firebaseTesterGroups = firebaseTesterGroupsStr
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    } else if (firebaseConfig?['tester_groups'] is List) {
+      firebaseTesterGroups = (firebaseConfig!['tester_groups'] as List)
+          .map((e) => e.toString())
+          .toList();
+    }
+
+    final firebaseReleaseNotes =
+        argResults[_firebaseReleaseNotes] as String? ??
+        firebaseConfig?['release_notes']?.toString();
+
     // Enhanced validation with helpful messaging
     if (provider == 'diawi' && token == null) {
       throw ArgumentError(
@@ -160,6 +211,28 @@ class ArgParserUtil {
         '3. Or add "diawi_token: YOUR_TOKEN" to share_my_apk.yaml\n\n'
         '💡 Alternative: Use Gofile.io (no token required):\n'
         '   share_my_apk --provider gofile\n\n'
+        'Available options:\n${_parser.usage}',
+      );
+    }
+
+    if (provider == 'firebase' && firebaseAppId == null) {
+      throw ArgumentError(
+        '🔥 Firebase provider requires an App ID!\n\n'
+        '📋 Quick Setup:\n'
+        '1. Get your Firebase App ID from Firebase Console:\n'
+        '   https://console.firebase.google.com\n'
+        '   → Project Settings → Your apps\n'
+        '   Format: 1:123456789:android:abc123def456\n\n'
+        '2. Use one of these methods:\n'
+        '   a) CLI: share_my_apk --provider firebase --firebase-app-id "YOUR_APP_ID"\n'
+        '   b) Config file (share_my_apk.yaml):\n'
+        '      firebase:\n'
+        '        app_id: "YOUR_APP_ID"\n\n'
+        '3. Authentication (choose ONE):\n'
+        '   a) Local: Run "firebase login" (recommended for development)\n'
+        '   b) CI/CD: Provide service account JSON file:\n'
+        '      --firebase-service-account /path/to/service-account.json\n\n'
+        '💡 Note: Service account is optional for local development!\n\n'
         'Available options:\n${_parser.usage}',
       );
     }
@@ -198,6 +271,10 @@ class ArgParserUtil {
       outputDir: outputDir,
       diawiToken: diawiToken,
       gofileToken: gofileToken,
+      firebaseAppId: firebaseAppId,
+      firebaseServiceAccountPath: firebaseServiceAccountPath,
+      firebaseTesterGroups: firebaseTesterGroups,
+      firebaseReleaseNotes: firebaseReleaseNotes,
       clean: clean,
       getPubDeps: getPubDeps,
       generateL10n: generateL10n,

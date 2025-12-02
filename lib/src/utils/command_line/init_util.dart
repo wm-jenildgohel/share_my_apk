@@ -22,9 +22,10 @@ class InitUtil {
 # Uncomment and modify values as needed.
 
 # 📋 PROVIDER SETTINGS
-# Choose your upload provider (diawi or gofile)
+# Choose your upload provider: diawi, gofile, or firebase
 # • Diawi: Great for team sharing, requires token, 70MB limit, links expire in 30 days
 # • Gofile: No size limits, no token required, permanent public links
+# • Firebase: Enterprise beta testing platform, 2GB limit, tester management, free
 provider: gofile
 
 # 🔑 API TOKENS
@@ -33,6 +34,28 @@ provider: gofile
 
 # Gofile token (optional, enables private uploads): https://gofile.io/api
 # gofile_token: your_gofile_token_here
+
+# 🔥 FIREBASE APP DISTRIBUTION (for beta testing)
+# Uncomment and configure to use Firebase App Distribution
+# firebase:
+#   # Firebase App ID (REQUIRED): Get from Firebase Console → Project Settings → Your apps
+#   # Format: 1:123456789:android:abc123def456
+#   app_id: "1:123456789:android:abc123def456"
+#
+#   # Service account JSON path (OPTIONAL for local dev)
+#   # Required for CI/CD, optional if you've run "firebase login"
+#   # Get from: Google Cloud Console → IAM & Admin → Service Accounts
+#   # service_account_path: ~/.firebase/service-account.json
+#
+#   # Tester groups to distribute to (OPTIONAL)
+#   # Create groups in Firebase Console → App Distribution → Testers & Groups
+#   # tester_groups:
+#   #   - qa-team
+#   #   - beta-testers
+#   #   - internal
+#
+#   # Release notes shown to testers (OPTIONAL, max 16,384 characters)
+#   # release_notes: "Bug fixes and performance improvements"
 
 # 📁 BUILD SETTINGS
 # Path to your Flutter project (default: current directory)
@@ -68,13 +91,19 @@ gen-l10n: true
     _logger.info('');
     _logger.info('🎯 Next Steps:');
     _logger.info('   1. Edit share_my_apk.yaml to customize your settings');
+    _logger.info('   2. Choose your provider:');
     _logger.info(
-      '   2. For Diawi: Add your token from https://dashboard.diawi.com/profile/api',
+      '      • Diawi: Add token from https://dashboard.diawi.com/profile/api',
+    );
+    _logger.info('      • Gofile: No setup needed (default)');
+    _logger.info(
+      '      • Firebase: Uncomment firebase section and add App ID',
     );
     _logger.info('   3. Run "share_my_apk" to build and upload your APK');
     _logger.info('');
     _logger.info('💡 Quick Start:');
     _logger.info('   • Gofile (no setup): share_my_apk');
-    _logger.info('   • Diawi: share_my_apk --diawi-token YOUR_TOKEN');
+    _logger.info('   • Diawi: share_my_apk --provider diawi --diawi-token YOUR_TOKEN');
+    _logger.info('   • Firebase: share_my_apk --provider firebase --firebase-app-id "YOUR_APP_ID"');
   }
 }

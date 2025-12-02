@@ -8,6 +8,7 @@ export 'package:share_my_apk/src/services/build/flutter_build_service.dart';
 
 // Upload Services
 export 'package:share_my_apk/src/services/upload/diawi_upload_service.dart';
+export 'package:share_my_apk/src/services/upload/firebase_cli_upload_service.dart';
 export 'package:share_my_apk/src/services/upload/gofile_upload_service.dart';
 export 'package:share_my_apk/src/services/upload/upload_service.dart';
 export 'package:share_my_apk/src/services/upload/upload_service_factory.dart';
