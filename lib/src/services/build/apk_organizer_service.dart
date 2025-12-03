@@ -11,6 +11,7 @@ class ApkOrganizerService {
   /// provided options.
   ///
   /// Returns the final path to the organized APK file.
+  /// Throws [ArgumentError] if inputs contain path traversal attempts.
   Future<String> organize(
     String originalApkPath,
     String? projectPath,
@@ -18,6 +19,9 @@ class ApkOrganizerService {
     String? environment,
     String? outputDir,
   ) async {
+    // Validate APK file
+    _validateApkPath(originalApkPath);
+
     final originalFile = File(originalApkPath);
     if (!await originalFile.exists()) {
       _logger.severe('Original APK file not found at: $originalApkPath');
@@ -31,11 +35,15 @@ class ApkOrganizerService {
       return originalApkPath;
     }
 
+    // Sanitize user inputs to prevent path traversal
+    final safeName = customName != null ? _sanitizeFileName(customName) : null;
+    final safeEnv = environment != null ? _sanitizeFileName(environment) : null;
+
     final appInfo = _getAppInfo(projectPath);
-    final fileName = _generateFileName(customName, appInfo);
+    final fileName = _generateFileName(safeName, appInfo);
     final destDir = _createDestinationDirectory(
       outputDir,
-      environment,
+      safeEnv,
       projectPath,
     );
     final finalApkPath = p.join(destDir, '$fileName.apk');
@@ -51,6 +59,65 @@ class ApkOrganizerService {
     }
 
     return finalApkPath;
+  }
+
+  /// Validates that the APK file path is safe and exists.
+  void _validateApkPath(String path) {
+    if (!path.endsWith('.apk')) {
+      throw ArgumentError('File is not an APK: $path');
+    }
+
+    // Check for path traversal attempts in the file path
+    if (path.contains('..')) {
+      throw ArgumentError(
+        'Invalid APK path: path traversal detected in "$path"',
+      );
+    }
+  }
+
+  /// Sanitizes a file name to prevent path traversal and dangerous characters.
+  ///
+  /// Removes/replaces:
+  /// - Directory separators (/, \)
+  /// - Path traversal sequences (..)
+  /// - Special characters (<, >, :, ", |, ?, *)
+  String _sanitizeFileName(String input) {
+    if (input.isEmpty) {
+      throw ArgumentError('File name cannot be empty');
+    }
+
+    // Remove/replace dangerous characters
+    var sanitized = input
+        .replaceAll(RegExp(r'[<>:"|?*\\/]'), '_')
+        .replaceAll(RegExp(r'\.\.+'), '.');
+
+    // Prevent path traversal
+    if (sanitized.contains('..') ||
+        sanitized.startsWith('/') ||
+        sanitized.startsWith('\\') ||
+        sanitized.contains(r'\') ||
+        sanitized.contains('/')) {
+      throw ArgumentError(
+        'Invalid file name: path traversal detected in "$input"',
+      );
+    }
+
+    // Limit length to prevent file system issues
+    if (sanitized.length > 200) {
+      sanitized = sanitized.substring(0, 200);
+      _logger.warning('File name truncated to 200 characters');
+    }
+
+    // Remove leading/trailing whitespace and dots
+    sanitized = sanitized.trim().replaceAll(RegExp(r'^\.+|\.+$'), '');
+
+    if (sanitized.isEmpty) {
+      throw ArgumentError(
+        'File name becomes empty after sanitization: "$input"',
+      );
+    }
+
+    return sanitized;
   }
 
   Map<String, String> _getAppInfo(String? projectPath) {

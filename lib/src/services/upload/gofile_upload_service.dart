@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:share_my_apk/src/exceptions/upload_exception.dart';
 import 'package:share_my_apk/src/services/upload/upload_service.dart';
 import 'package:share_my_apk/src/utils/retry_util.dart';
 import 'package:logging/logging.dart';
@@ -10,36 +12,73 @@ import 'package:meta/meta.dart';
 class GofileUploadService implements UploadService {
   /// The API token for authenticating with the Gofile.io API.
   final String? apiToken;
+
+  /// The HTTP client used for network requests.
+  final http.Client _client;
+
   static final Logger _logger = Logger('GofileUploadService');
 
+  static const _uploadTimeoutMinutes = 10;
+
   /// Creates a new [GofileUploadService].
-  GofileUploadService({this.apiToken});
+  GofileUploadService({this.apiToken, http.Client? client})
+      : _client = client ?? http.Client();
 
   @visibleForTesting
   Future<String> getServer() async {
-    final response = await http.get(Uri.parse('https://api.gofile.io/servers'));
-    if (response.statusCode == 200) {
-      final jsonResponse = json.decode(response.body);
-      if (jsonResponse['status'] == 'ok') {
-        final servers = jsonResponse['data']['servers'] as List;
-        if (servers.isNotEmpty) {
-          return servers[0]['name']?.toString() ?? '';
+    try {
+      final response = await _client
+          .get(Uri.parse('https://api.gofile.io/servers'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw TimeoutException('Server lookup timed out after 30s'),
+          );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        if (jsonResponse['status'] == 'ok') {
+          final servers = jsonResponse['data']['servers'] as List;
+          if (servers.isNotEmpty) {
+            return servers[0]['name']?.toString() ?? '';
+          }
         }
       }
+
+      throw UploadException(
+        'Failed to get gofile.io server',
+        provider: 'gofile',
+        statusCode: response.statusCode,
+        responseBody: response.body,
+      );
+    } on TimeoutException catch (e) {
+      throw UploadException(
+        'Server lookup timed out: ${e.message}',
+        provider: 'gofile',
+        originalError: e,
+      );
+    } on SocketException catch (e) {
+      throw UploadException(
+        'Network error during server lookup: ${e.message}',
+        provider: 'gofile',
+        originalError: e,
+      );
     }
-    throw Exception('Failed to get gofile.io server.');
   }
 
   @override
   Future<String> upload(String filePath) async {
     _logger.info('☁️  Initializing Gofile.io upload...');
 
-    final file = File(filePath);
-    if (!await file.exists()) {
-      _logger.severe('❌ File not found: $filePath');
-      throw Exception('File not found: $filePath');
+    // Validate file
+    await _validateFile(filePath);
+
+    // Redact token in logs
+    if (apiToken != null) {
+      _logger.fine('Token: ${_redactToken(apiToken!)}');
     }
 
+    final file = File(filePath);
     final fileSize = await file.length();
     final fileSizeMB = (fileSize / 1024 / 1024).toStringAsFixed(2);
     _logger.info('📁 File size: $fileSizeMB MB');
@@ -69,9 +108,15 @@ class GofileUploadService implements UploadService {
         '⏳ This may take a while depending on file size and connection...',
       );
 
-      // Use retry logic for upload with network error handling
+      // Use retry logic for upload with network error handling and timeout
       final response = await RetryUtil.withRetry(
-        () => request.send(),
+        () => _client.send(request).timeout(
+              Duration(minutes: _uploadTimeoutMinutes),
+              onTimeout: () => throw TimeoutException(
+                'Upload timed out after $_uploadTimeoutMinutes minutes. '
+                'Please check your network connection.',
+              ),
+            ),
         maxRetries: 3,
         retryIf: RetryUtil.conditions.or([
           RetryUtil.conditions.network,
@@ -80,11 +125,12 @@ class GofileUploadService implements UploadService {
         ]),
       );
 
+      final responseBody = await response.stream.bytesToString();
+
       if (response.statusCode == 200) {
         _logger.info('✅ Upload completed successfully!');
         _logger.info('📋 Processing response...');
 
-        final responseBody = await response.stream.bytesToString();
         final jsonResponse = json.decode(responseBody);
 
         if (jsonResponse['status'] == 'ok') {
@@ -103,26 +149,75 @@ class GofileUploadService implements UploadService {
           final reason = jsonResponse['status'];
           final message = jsonResponse['message'] ?? 'Unknown error';
           _logger.severe('❌ Gofile.io upload failed: $reason - $message');
-          throw Exception('Gofile.io upload failed: $message');
+          throw UploadException(
+            'Gofile.io upload failed: $message',
+            provider: 'gofile',
+            filePath: filePath,
+            responseBody: responseBody,
+          );
         }
       } else {
         _logger.severe(
           '❌ Upload failed with HTTP status: ${response.statusCode}',
         );
         _logger.info('💡 Try again or check your internet connection');
-        throw Exception(
-          'Gofile.io upload failed with status: ${response.statusCode}',
+        throw UploadException(
+          'Gofile.io upload failed',
+          provider: 'gofile',
+          filePath: filePath,
+          statusCode: response.statusCode,
+          responseBody: responseBody,
         );
       }
+    } on TimeoutException catch (e) {
+      throw UploadException(
+        'Upload timed out: ${e.message}',
+        provider: 'gofile',
+        filePath: filePath,
+        originalError: e,
+      );
+    } on SocketException catch (e) {
+      _logger.severe('❌ Network error during upload: Connection failed');
+      _logger.info('💡 Check your internet connection and try again');
+      throw UploadException(
+        'Network error: ${e.message}',
+        provider: 'gofile',
+        filePath: filePath,
+        originalError: e,
+      );
     } catch (e) {
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('TimeoutException')) {
-        _logger.severe('❌ Network error during upload: Connection failed');
-        _logger.info('💡 Check your internet connection and try again');
-      } else {
-        _logger.severe('❌ Upload error: $e');
-      }
-      throw Exception('Error uploading to Gofile.io: $e');
+      if (e is UploadException) rethrow;
+      _logger.severe('❌ Upload error: $e');
+      throw UploadException(
+        'Unexpected error during upload',
+        provider: 'gofile',
+        filePath: filePath,
+        originalError: e,
+      );
     }
+  }
+
+  /// Validates that the file exists.
+  Future<void> _validateFile(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      _logger.severe('❌ File not found: $filePath');
+      throw UploadException(
+        'File not found',
+        provider: 'gofile',
+        filePath: filePath,
+      );
+    }
+  }
+
+  /// Redacts API token for safe logging (shows only first 4 characters).
+  String _redactToken(String token) {
+    if (token.length <= 4) return '****';
+    return '${token.substring(0, 4)}${'*' * (token.length - 4)}';
+  }
+
+  /// Disposes of the HTTP client. Call this when done with the service.
+  void dispose() {
+    _client.close();
   }
 }

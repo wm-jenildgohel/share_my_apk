@@ -125,7 +125,13 @@ class CliOptions {
   /// All parameters are optional and have sensible defaults.
   /// The [isRelease] parameter defaults to `true` and [provider] defaults to `'diawi'`.
   /// Build pipeline options default to `true` for comprehensive builds.
-  const CliOptions({
+  ///
+  /// Throws [ArgumentError] if:
+  /// - [provider] is not one of: 'diawi', 'gofile', 'firebase'
+  /// - [provider] is 'diawi' but neither [diawiToken] nor [token] is provided
+  /// - [provider] is 'firebase' but [firebaseAppId] is not provided
+  /// - [firebaseAppId] is provided but has invalid format
+  CliOptions({
     this.token,
     this.diawiToken,
     this.gofileToken,
@@ -135,7 +141,7 @@ class CliOptions {
     this.firebaseReleaseNotes,
     this.path,
     this.isRelease = true,
-    this.provider = 'diawi',
+    String? provider,
     this.customName,
     this.environment,
     this.outputDir,
@@ -143,7 +149,76 @@ class CliOptions {
     this.getPubDeps = true,
     this.generateL10n = true,
     this.verbose = false,
-  });
+  }) : provider = _validateProvider(provider ?? 'diawi') {
+    // H2 fix: Add input validation
+    _validateConfiguration();
+  }
+
+  /// Valid provider names.
+  static const validProviders = ['diawi', 'gofile', 'firebase'];
+
+  /// Validates that the provider is supported.
+  static String _validateProvider(String provider) {
+    final normalizedProvider = provider.trim().toLowerCase();
+
+    if (!validProviders.contains(normalizedProvider)) {
+      throw ArgumentError(
+        'Invalid provider: "$provider". '
+        'Must be one of: ${validProviders.join(", ")}',
+      );
+    }
+
+    return normalizedProvider;
+  }
+
+  /// Validates the configuration based on the selected provider.
+  void _validateConfiguration() {
+    // Validate provider-specific requirements
+    switch (provider) {
+      case 'diawi':
+        if (diawiToken == null && token == null) {
+          throw ArgumentError(
+            'Diawi provider requires a token. '
+            'Provide --diawi-token or set diawi_token in config file.\n'
+            'Get your token at: https://dashboard.diawi.com/profile/api',
+          );
+        }
+        break;
+
+      case 'firebase':
+        if (firebaseAppId == null || firebaseAppId!.isEmpty) {
+          throw ArgumentError(
+            'Firebase provider requires an App ID.\n'
+            'Get your Firebase App ID from:\n'
+            'Firebase Console → Project Settings → Your apps\n'
+            'Format: 1:123456789:android:abc123def456',
+          );
+        }
+
+        // Validate Firebase App ID format
+        _validateFirebaseAppId(firebaseAppId!);
+        break;
+
+      case 'gofile':
+        // Gofile doesn't require a token, so no validation needed
+        break;
+    }
+  }
+
+  /// Validates Firebase App ID format.
+  void _validateFirebaseAppId(String appId) {
+    // Firebase App ID format: 1:123456789:android:abc123def456
+    // Pattern: {mobilesdk_app_id}:{platform}:{bundle_id}
+    final pattern = RegExp(r'^\d+:\d+:(android|ios):[a-zA-Z0-9]+$');
+
+    if (!pattern.hasMatch(appId)) {
+      throw ArgumentError(
+        'Invalid Firebase App ID format: "$appId"\n'
+        'Expected format: 1:123456789:android:abc123def456\n'
+        'Get your App ID from Firebase Console → Project Settings',
+      );
+    }
+  }
 
   /// Creates a copy of this [CliOptions] with the given fields replaced.
   ///

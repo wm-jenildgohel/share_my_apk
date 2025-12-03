@@ -10,31 +10,73 @@ const String cyan = '\x1B[36m';
 
 class MessageUtil {
   static void printSuccessBox(String provider, String downloadLink) {
-    final message = '🎉 APK successfully uploaded to $provider!';
-    final link = '🔗 Download: $downloadLink';
-    final share = '📱 Share this link to install the APK';
-    final tips = provider == 'diawi'
-        ? '💡 Diawi links expire after 30 days'
-        : '💡 Gofile links are permanent but public';
+    // Provider-specific messages
+    String emoji, title, linkLabel, shareMessage, tip;
+    
+    switch (provider.toLowerCase()) {
+      case 'firebase':
+        emoji = '🔥';
+        title = 'APK successfully uploaded to Firebase App Distribution!';
+        linkLabel = '🔗 Tester Link:';
+        shareMessage = '📱 Share this link with your testers';
+        tip = '💡 Testers need Firebase App Tester app or will get email invite';
+        break;
+      case 'diawi':
+        emoji = '📦';
+        title = 'APK successfully uploaded to Diawi!';
+        linkLabel = '🔗 Download Link:';
+        shareMessage = '📱 Share this link to install the APK';
+        tip = '💡 Diawi links expire after 30 days';
+        break;
+      case 'gofile':
+      default:
+        emoji = '☁️';
+        title = 'APK successfully uploaded to Gofile!';
+        linkLabel = '🔗 Download Link:';
+        shareMessage = '📱 Share this link to install the APK';
+        tip = '💡 Gofile links are permanent but publicly accessible';
+        break;
+    }
 
+    final message = '$emoji $title';
+    final link = '$linkLabel $downloadLink';
+    
+    // Calculate box width based on longest line
     final maxLength = [
       message,
       link,
-      share,
-      tips,
-    ].map((s) => s.length).reduce((a, b) => a > b ? a : b);
+      shareMessage,
+      tip,
+    ].map((s) => _stripEmojis(s).length).reduce((a, b) => a > b ? a : b);
     final boxWidth = maxLength + 4;
 
+    // Print beautiful success box
+    stdout.writeln('\n\n');
     stdout.writeln(green);
     stdout.writeln('╔${'═' * (boxWidth - 2)}╗');
-    stdout.writeln('║ ${message.padRight(boxWidth - 3)}║');
+    stdout.writeln('║ ${_padLine(message, boxWidth - 3)}║');
     stdout.writeln('║${' ' * (boxWidth - 2)}║');
-    stdout.writeln('║ ${link.padRight(boxWidth - 3)}║');
-    stdout.writeln('║ ${share.padRight(boxWidth - 3)}║');
+    stdout.writeln('║ ${_padLine(link, boxWidth - 3)}║');
+    stdout.writeln('║ ${_padLine(shareMessage, boxWidth - 3)}║');
     stdout.writeln('║${' ' * (boxWidth - 2)}║');
-    stdout.writeln('║ ${tips.padRight(boxWidth - 3)}║');
+    stdout.writeln('║ ${_padLine(tip, boxWidth - 3)}║');
     stdout.writeln('╚${'═' * (boxWidth - 2)}╝');
     stdout.writeln(reset);
+  }
+
+  /// Strips emojis for accurate length calculation
+  static String _stripEmojis(String text) {
+    // Remove common emojis used in our messages
+    return text
+        .replaceAll(RegExp(r'[🎉🔗📱💡🔥📦☁️]'), '')
+        .trim();
+  }
+
+  /// Pads a line accounting for emoji width issues
+  static String _padLine(String text, int width) {
+    final strippedLength = _stripEmojis(text).length;
+    final padding = width - strippedLength;
+    return text + (' ' * (padding > 0 ? padding : 0));
   }
 
   static void printHelpfulSuggestions() {

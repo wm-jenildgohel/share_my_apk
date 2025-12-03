@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:process_run/shell.dart';
+import 'package:share_my_apk/src/constants/upload_limits.dart';
+import 'package:share_my_apk/src/exceptions/build_exception.dart';
 import 'package:share_my_apk/src/services/build/apk_organizer_service.dart';
 import 'package:share_my_apk/src/services/build/apk_parser_service.dart';
 import 'package:share_my_apk/src/utils/console_logger.dart';
+import 'package:share_my_apk/src/utils/flutter_version_checker.dart';
 
 class FlutterBuildService {
   final ApkParserService _apkParserService;
@@ -32,6 +34,7 @@ class FlutterBuildService {
   /// - [generateL10n]: Whether to generate localizations. Defaults to `true`.
   ///
   /// Returns the path to the built and organized APK file.
+  /// Throws [BuildException] if the build fails.
   Future<String> build({
     bool release = true,
     String? projectPath,
@@ -44,78 +47,142 @@ class FlutterBuildService {
     bool verbose = false,
   }) async {
     final workingDir = projectPath ?? Directory.current.path;
-    final shell = Shell(workingDirectory: workingDir);
+
+    // Validate working directory
+    if (!Directory(workingDir).existsSync()) {
+      throw BuildException(
+        'Project path does not exist',
+        workingDirectory: workingDir,
+      );
+    }
+
     final buildType = release ? 'release' : 'debug';
 
     _logger?.info('🚀 Starting comprehensive APK build (mode: $buildType)...');
 
+    // Check Flutter version compatibility
+    await FlutterVersionChecker.checkFlutterVersion();
+
     final flutterCommand = _detectFlutterCommand(workingDir);
     _logger?.fine('Using Flutter command: $flutterCommand');
 
-    await _runBuildPipeline(
-      shell,
-      flutterCommand,
-      workingDir,
-      buildType,
-      clean,
-      getPubDeps,
-      generateL10n,
-      verbose,
-    );
-
-    final result = await _runCommand(
-      shell,
-      '$flutterCommand build apk --$buildType',
-      'Building APK ($buildType mode)...',
-      verbose,
-    );
-
-    if (result.first.exitCode == 0) {
-      final buildOutput = result.outText;
-      _logger?.fine('Build output:\n$buildOutput');
-
-      final originalApkPath = _apkParserService.getApkPath(
-        buildOutput,
-        projectPath,
+    try {
+      await _runBuildPipeline(
+        flutterCommand,
+        workingDir,
+        buildType,
+        clean,
+        getPubDeps,
+        generateL10n,
+        verbose,
       );
-      if (originalApkPath != null) {
-        _logger?.info('✅ APK built successfully: $originalApkPath');
 
-        final finalApkPath = await _apkOrganizerService.organize(
-          originalApkPath,
+      final result = await _runSecureCommand(
+        flutterCommand,
+        ['build', 'apk', '--$buildType'],
+        workingDir,
+        'Building APK ($buildType mode)...',
+        verbose,
+      );
+
+      if (result.exitCode == 0) {
+        final buildOutput = result.stdout as String;
+        _logger?.fine('Build output:\n$buildOutput');
+
+        final originalApkPath = _apkParserService.getApkPath(
+          buildOutput,
           projectPath,
-          customName,
-          environment,
-          outputDir,
         );
+        if (originalApkPath != null) {
+          _logger?.info('✅ APK built successfully: $originalApkPath');
 
-        return finalApkPath;
+          final finalApkPath = await _apkOrganizerService.organize(
+            originalApkPath,
+            projectPath,
+            customName,
+            environment,
+            outputDir,
+          );
+
+          return finalApkPath;
+        } else {
+          _logger?.severe('🔥 Could not find APK path in build output.');
+          throw BuildException(
+            'Could not find APK path in build output',
+            exitCode: result.exitCode,
+            stdout: result.stdout as String?,
+            workingDirectory: workingDir,
+          );
+        }
       } else {
-        _logger?.severe('🔥 Could not find APK path in build output.');
-        throw Exception('APK build failed: Could not find APK path.');
+        _logger?.severe(
+          '🔥 APK build failed with exit code ${result.exitCode}:',
+        );
+        _logger?.severe(result.stderr.toString());
+        throw BuildException(
+          'Flutter build failed',
+          exitCode: result.exitCode,
+          stdout: result.stdout as String?,
+          stderr: result.stderr as String?,
+          workingDirectory: workingDir,
+        );
       }
-    } else {
-      _logger?.severe(
-        '🔥 APK build failed with exit code ${result.first.exitCode}:',
+    } on TimeoutException catch (e) {
+      throw BuildException(
+        'Build timeout: ${e.message}',
+        workingDirectory: workingDir,
       );
-      _logger?.severe(result.errText);
-      throw Exception('APK build failed.');
+    } on ProcessException catch (e) {
+      throw BuildException(
+        'Failed to execute Flutter command: ${e.message}',
+        workingDirectory: workingDir,
+      );
+    } catch (e) {
+      if (e is BuildException) rethrow;
+      throw BuildException(
+        'Unexpected build error: $e',
+        workingDirectory: workingDir,
+      );
     }
   }
 
-  Future<List<ProcessResult>> _runCommand(
-    Shell shell,
-    String command,
+  /// Executes a Flutter command securely using Process.run to prevent command injection.
+  Future<ProcessResult> _runSecureCommand(
+    String flutterCommand,
+    List<String> args,
+    String workingDir,
     String message,
     bool verbose,
   ) async {
     _logger?.startSpinner(message);
+
+    // Split flutter command (handles 'fvm flutter' or 'flutter')
+    final commandParts = flutterCommand.split(' ');
+    final executable = commandParts.first;
+    final baseArgs = commandParts.length > 1 ? commandParts.sublist(1) : <String>[];
+    final allArgs = [...baseArgs, ...args];
+
+    _logger?.fine('Executing: $executable ${allArgs.join(' ')}');
+
     try {
-      final result = await shell.run(command);
+      final result = await Process.run(
+        executable,
+        allArgs,
+        workingDirectory: workingDir,
+        runInShell: false, // Prevent shell interpretation for security
+      ).timeout(
+        Duration(minutes: UploadLimits.buildTimeoutMinutes),
+        onTimeout: () => throw TimeoutException(
+          'Command timed out after ${UploadLimits.buildTimeoutMinutes} minutes',
+        ),
+      );
+
       _logger?.stopSpinner();
-      if (verbose) {
-        _logger?.fine(result.map((line) => line.outText).join('\n'));
+
+      if (verbose && result.stdout != null) {
+        _logger?.fine(result.stdout as String);
       }
+
       return result;
     } catch (e) {
       _logger?.stopSpinner(success: false);
@@ -124,7 +191,6 @@ class FlutterBuildService {
   }
 
   Future<void> _runBuildPipeline(
-    Shell shell,
     String flutterCommand,
     String workingDir,
     String buildType,
@@ -135,9 +201,10 @@ class FlutterBuildService {
   ) async {
     // 1. Clean project
     if (clean) {
-      await _runCommand(
-        shell,
-        '$flutterCommand clean',
+      await _runSecureCommand(
+        flutterCommand,
+        ['clean'],
+        workingDir,
         '🧹 [1/4] Cleaning project...',
         verbose,
       );
@@ -145,9 +212,10 @@ class FlutterBuildService {
 
     // 2. Get dependencies
     if (getPubDeps) {
-      await _runCommand(
-        shell,
-        '$flutterCommand pub get',
+      await _runSecureCommand(
+        flutterCommand,
+        ['pub', 'get'],
+        workingDir,
         '📦 [2/4] Getting dependencies...',
         verbose,
       );
@@ -157,9 +225,10 @@ class FlutterBuildService {
     final l10nFile = File(p.join(workingDir, 'l10n.yaml'));
     if (generateL10n && l10nFile.existsSync()) {
       _logger?.fine('Found localizations directory, will generate l10n');
-      await _runCommand(
-        shell,
-        '$flutterCommand gen-l10n',
+      await _runSecureCommand(
+        flutterCommand,
+        ['gen-l10n'],
+        workingDir,
         '🌍 [3/4] Generating localizations...',
         verbose,
       );

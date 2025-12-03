@@ -45,7 +45,6 @@ class ArgParserUtil {
       _provider,
       help: 'The upload provider to use.',
       allowed: ['diawi', 'gofile', 'firebase'],
-      defaultsTo: 'diawi',
     );
     _parser.addOption(_diawiToken, help: 'Your Diawi API token.');
     _parser.addOption(_gofileToken, help: 'Your Gofile API token.');
@@ -171,7 +170,11 @@ class ArgParserUtil {
         argResults[_verbose] as bool? ?? (config['verbose'] as bool? ?? false);
 
     // Parse Firebase configuration
-    final firebaseConfig = config['firebase'] as Map<String, dynamic>?;
+    final firebaseConfigRaw = config['firebase'];
+    Map<String, dynamic>? firebaseConfig;
+    if (firebaseConfigRaw != null) {
+      firebaseConfig = Map<String, dynamic>.from(firebaseConfigRaw as Map);
+    }
 
     final firebaseAppId =
         argResults[_firebaseAppId] as String? ??

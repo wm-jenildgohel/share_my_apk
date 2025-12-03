@@ -116,7 +116,6 @@ class CliRunner {
 
       final downloadLink = await uploader.upload(apkPath);
 
-      stdout.writeln('\n' * 3);
       message_util.MessageUtil.printSuccessBox(provider, downloadLink);
     } on ArgumentError catch (e) {
       _logger.severe('❌ Configuration Error: ${e.message}');

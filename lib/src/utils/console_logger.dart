@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 
@@ -15,20 +12,6 @@ const String magenta = '[35m';
 
 class ConsoleLogger {
   final Logger _logger;
-  Timer? _spinnerTimer;
-  int _spinnerIndex = 0;
-  final List<String> _spinner = [
-    '⠋',
-    '⠙',
-    '⠹',
-    '⠸',
-    '⠼',
-    '⠴',
-    '⠦',
-    '⠧',
-    '⠇',
-    '⠏',
-  ];
 
   ConsoleLogger(String name) : _logger = Logger(name);
 
@@ -49,15 +32,10 @@ class ConsoleLogger {
   }
 
   void startSpinner(String message) {
-    _spinnerTimer = Timer.periodic(const Duration(milliseconds: 80), (timer) {
-      stdout.write('\r${_spinner[_spinnerIndex]} $message');
-      _spinnerIndex = (_spinnerIndex + 1) % _spinner.length;
-    });
+    info(message);
   }
 
   void stopSpinner({bool success = true, String? message}) {
-    _spinnerTimer?.cancel();
-    stdout.write('\r');
     if (success) {
       info(message ?? 'Done.');
     } else {

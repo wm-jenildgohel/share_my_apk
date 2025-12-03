@@ -24,3 +24,7 @@ export 'package:share_my_apk/src/utils/retry_util.dart';
 // Configuration and Models
 export 'package:share_my_apk/src/models/cli_options.dart';
 export 'package:share_my_apk/src/services/config_service.dart';
+
+// Exceptions
+export 'package:share_my_apk/src/exceptions/build_exception.dart';
+export 'package:share_my_apk/src/exceptions/upload_exception.dart';

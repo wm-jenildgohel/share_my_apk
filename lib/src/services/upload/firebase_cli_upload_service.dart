@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:share_my_apk/src/exceptions/upload_exception.dart';
 import 'package:share_my_apk/src/services/upload/upload_service.dart';
 import 'package:share_my_apk/src/utils/console_logger.dart';
 
@@ -68,10 +69,7 @@ class FirebaseCliUploadService implements UploadService {
     await _validateFirebaseCli();
 
     // Step 2: Validate APK file exists
-    final apkFile = File(filePath);
-    if (!await apkFile.exists()) {
-      throw Exception('APK file not found: $filePath');
-    }
+    await _validateFile(filePath);
 
     // Step 3: Check authentication (only if service account not provided)
     if (serviceAccountPath == null) {
@@ -80,8 +78,10 @@ class FirebaseCliUploadService implements UploadService {
       // Validate service account file exists
       final serviceAccountFile = File(serviceAccountPath!);
       if (!await serviceAccountFile.exists()) {
-        throw Exception(
+        throw UploadException(
           'Service account file not found: $serviceAccountPath',
+          provider: 'firebase',
+          filePath: filePath,
         );
       }
     }
@@ -93,20 +93,35 @@ class FirebaseCliUploadService implements UploadService {
   /// Validates that Firebase CLI is installed and accessible.
   Future<void> _validateFirebaseCli() async {
     try {
+      // Check if Firebase CLI is installed
       final result = await Process.run('which', ['firebase']);
       if (result.exitCode != 0) {
-        throw Exception(_getFirebaseCliNotFoundMessage());
+        _logger.severe('Firebase CLI not found in PATH');
+        throw UploadException(
+          _getFirebaseCliNotFoundMessage(),
+          provider: 'firebase',
+        );
       }
 
-      // Verify Firebase CLI version (optional but helpful)
+      // Verify Firebase CLI version
       final versionResult = await Process.run('firebase', ['--version']);
       if (versionResult.exitCode == 0) {
-        _logger.info(
-          'Firebase CLI version: ${versionResult.stdout.toString().trim()}',
+        final version = versionResult.stdout.toString().trim();
+        _logger.info('Firebase CLI version: $version');
+      } else {
+        throw UploadException(
+          'Firebase CLI found but unable to determine version',
+          provider: 'firebase',
         );
       }
     } catch (e) {
-      throw Exception(_getFirebaseCliNotFoundMessage());
+      if (e is UploadException) rethrow;
+      _logger.severe('Error verifying Firebase CLI: $e');
+      throw UploadException(
+        _getFirebaseCliNotFoundMessage(),
+        provider: 'firebase',
+        originalError: e,
+      );
     }
   }
 
@@ -127,15 +142,23 @@ class FirebaseCliUploadService implements UploadService {
         if (stderr.contains('not logged in') ||
             stderr.contains('authentication') ||
             stderr.contains('credentials')) {
-          throw Exception(_getAuthenticationErrorMessage());
+          throw UploadException(
+            _getAuthenticationErrorMessage(),
+            provider: 'firebase',
+          );
         }
       }
 
       _logger.info('Using existing Firebase authentication (user login or ADC)');
     } catch (e) {
+      if (e is UploadException) rethrow;
       if (e.toString().contains('not logged in') ||
           e.toString().contains('authentication')) {
-        throw Exception(_getAuthenticationErrorMessage());
+        throw UploadException(
+          _getAuthenticationErrorMessage(),
+          provider: 'firebase',
+          originalError: e,
+        );
       }
       // If it's a different error, log it but continue
       // (Firebase CLI might still work)
@@ -188,7 +211,12 @@ class FirebaseCliUploadService implements UploadService {
     if (result.exitCode != 0) {
       final errorMessage = result.stderr.toString();
       _logger.severe('Firebase upload failed: $errorMessage');
-      throw Exception('Firebase App Distribution upload failed:\n$errorMessage');
+      throw UploadException(
+        'Firebase App Distribution upload failed',
+        provider: 'firebase',
+        filePath: filePath,
+        responseBody: errorMessage,
+      );
     }
 
     // Parse output
@@ -271,5 +299,22 @@ Option 3 - Application Default Credentials:
 📖 For more information:
    https://firebase.google.com/docs/app-distribution/authenticate-service-account
 ''';
+  }
+
+  /// Validates that the file exists.
+  Future<void> _validateFile(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      _logger.severe('❌ File not found: $filePath');
+      throw UploadException(
+        'APK file not found',
+        provider: 'firebase',
+        filePath: filePath,
+      );
+    }
+
+    final fileSize = await file.length();
+    final fileSizeMB = (fileSize / 1024 / 1024).toStringAsFixed(2);
+    _logger.info('📁 File size: $fileSizeMB MB');
   }
 }

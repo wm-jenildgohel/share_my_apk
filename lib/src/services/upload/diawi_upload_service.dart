@@ -1,38 +1,37 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show Random, min, pow;
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
+import 'package:share_my_apk/src/constants/upload_limits.dart';
+import 'package:share_my_apk/src/exceptions/upload_exception.dart';
 import 'package:share_my_apk/src/services/upload/upload_service.dart';
 
 /// An [UploadService] for uploading APKs to Diawi.
 class DiawiUploadService implements UploadService {
   /// The API token for authenticating with the Diawi API.
   final String apiToken;
+
+  /// The HTTP client used for network requests.
+  final http.Client _client;
+
   static final Logger _logger = Logger('DiawiUploadService');
 
   /// Creates a new [DiawiUploadService].
-  DiawiUploadService(this.apiToken);
+  DiawiUploadService(this.apiToken, {http.Client? client})
+      : _client = client ?? http.Client();
 
   @override
   Future<String> upload(String filePath) async {
     _logger.info('🔶 Initializing Diawi upload...');
 
-    final file = File(filePath);
-    if (!await file.exists()) {
-      _logger.severe('❌ File not found: $filePath');
-      throw Exception('File not found: $filePath');
-    }
+    // Validate file
+    await _validateFile(filePath);
 
-    final fileSize = await file.length();
-    final fileSizeMB = (fileSize / 1024 / 1024).toStringAsFixed(2);
-    _logger.info('📁 File size: $fileSizeMB MB');
+    // Redact token in logs (H1 fix)
+    _logger.fine('Token: ${_redactToken(apiToken)}');
 
-    if (fileSize > 70 * 1024 * 1024) {
-      _logger.warning('⚠️  File size exceeds Diawi\'s 70MB limit!');
-      _logger.info('💡 Consider using Gofile.io for larger files');
-    }
-
-    _logger.info('🔐 Authenticating with Diawi API...');
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('https://upload.diawi.com/'),
@@ -48,22 +47,30 @@ class DiawiUploadService implements UploadService {
         '⏳ This may take a while depending on file size and connection...',
       );
 
-      final response = await request.send();
+      // C3 fix: Add timeout to upload
+      final streamedResponse = await _client.send(request).timeout(
+            Duration(minutes: UploadLimits.defaultUploadTimeoutMinutes),
+            onTimeout: () => throw TimeoutException(
+              'Upload timed out after ${UploadLimits.defaultUploadTimeoutMinutes} minutes. '
+              'Please check your network connection.',
+            ),
+          );
+
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         _logger.info('✅ Upload request successful!');
         _logger.info('📋 Processing response...');
 
-        final responseBody = await response.stream.bytesToString();
-        final jsonResponse = json.decode(responseBody);
+        final jsonResponse = json.decode(response.body) as Map<String, dynamic>;
 
         if (jsonResponse['job'] != null) {
-          final job = jsonResponse['job'];
+          final job = jsonResponse['job'] as String;
           _logger.info('🎯 Upload started, job ID: $job');
           _logger.info('⏳ Waiting for Diawi to process the APK...');
 
-          // Poll for job completion
-          return await _pollJobStatus(job as String);
+          // H3 fix: Poll for job completion with exponential backoff
+          return await _pollJobStatus(job);
         } else {
           final errorMessage =
               jsonResponse['message']?.toString() ?? 'Unknown error';
@@ -73,7 +80,13 @@ class DiawiUploadService implements UploadService {
               '💡 Check your Diawi token at: https://dashboard.diawi.com/profile/api',
             );
           }
-          throw Exception('Diawi upload failed: $errorMessage');
+          // H4 fix: Use UploadException with context
+          throw UploadException(
+            'Diawi upload failed: $errorMessage',
+            provider: 'diawi',
+            filePath: filePath,
+            responseBody: response.body,
+          );
         }
       } else {
         _logger.severe(
@@ -88,40 +101,106 @@ class DiawiUploadService implements UploadService {
             '💡 File too large. Diawi has a 70MB limit. Try using Gofile.io instead.',
           );
         }
-        throw Exception(
-          'Diawi upload failed with status: ${response.statusCode}',
+        // H4 fix: Use UploadException with context
+        throw UploadException(
+          'Diawi upload failed',
+          provider: 'diawi',
+          filePath: filePath,
+          statusCode: response.statusCode,
+          responseBody: response.body,
         );
       }
+    } on TimeoutException catch (e) {
+      throw UploadException(
+        'Upload timed out: ${e.message}',
+        provider: 'diawi',
+        filePath: filePath,
+        originalError: e,
+      );
+    } on SocketException catch (e) {
+      _logger.severe('❌ Network error during upload: Connection failed');
+      _logger.info('💡 Check your internet connection and try again');
+      throw UploadException(
+        'Network error: ${e.message}',
+        provider: 'diawi',
+        filePath: filePath,
+        originalError: e,
+      );
     } catch (e) {
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('TimeoutException')) {
-        _logger.severe('❌ Network error during upload: Connection failed');
-        _logger.info('💡 Check your internet connection and try again');
-      } else {
-        _logger.severe('❌ Upload error: $e');
-      }
-      throw Exception('Error uploading to Diawi: $e');
+      if (e is UploadException) rethrow;
+      _logger.severe('❌ Upload error: $e');
+      throw UploadException(
+        'Unexpected error during upload',
+        provider: 'diawi',
+        filePath: filePath,
+        originalError: e,
+      );
     }
+  }
+
+  /// Validates that the file exists and is within Diawi's size limit.
+  Future<void> _validateFile(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      _logger.severe('❌ File not found: $filePath');
+      throw UploadException(
+        'File not found',
+        provider: 'diawi',
+        filePath: filePath,
+      );
+    }
+
+    final fileSize = await file.length();
+    final fileSizeMB = UploadLimits.bytesToMB(fileSize).toStringAsFixed(2);
+    _logger.info('📁 File size: $fileSizeMB MB');
+
+    if (fileSize > UploadLimits.diawiMaxSizeBytes) {
+      final limitMB = UploadLimits.bytesToMB(UploadLimits.diawiMaxSizeBytes).toStringAsFixed(0);
+      _logger.warning('⚠️  File size exceeds Diawi\'s ${limitMB}MB limit!');
+      _logger.info('💡 Consider using Gofile.io for larger files');
+      throw UploadException(
+        'File size ($fileSizeMB MB) exceeds Diawi limit ($limitMB MB)',
+        provider: 'diawi',
+        filePath: filePath,
+      );
+    }
+  }
+
+  /// Redacts API token for safe logging (shows only first 4 characters).
+  String _redactToken(String token) {
+    if (token.length <= 4) return '****';
+    return '${token.substring(0, 4)}${'*' * (token.length - 4)}';
   }
 
   Future<String> _pollJobStatus(String job) async {
     _logger.info('🔄 Monitoring processing status for job: $job');
 
-    const maxAttempts = 30;
-    const pollInterval = Duration(seconds: 5);
-    final totalTimeoutMinutes = (maxAttempts * pollInterval.inSeconds / 60)
-        .toStringAsFixed(1);
+    var attempts = 0;
 
-    _logger.info('⏰ Maximum wait time: $totalTimeoutMinutes minutes');
+    while (attempts < UploadLimits.maxPollingAttempts) {
+      // H3 fix: Calculate exponential backoff with jitter
+      final backoff = _calculateBackoff(attempts);
+      _logger.fine(
+        'Polling attempt ${attempts + 1}/${UploadLimits.maxPollingAttempts} (waiting ${backoff.inSeconds}s)',
+      );
 
-    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      await Future<void>.delayed(backoff);
+      attempts++;
+
       try {
-        final response = await http.get(
-          Uri.parse('https://upload.diawi.com/status?token=$apiToken&job=$job'),
-        );
+        final statusUrl = Uri.parse(
+            'https://upload.diawi.com/status?token=$apiToken&job=$job');
+
+        // C3 fix: Add timeout to status check
+        final response = await _client.get(statusUrl).timeout(
+              Duration(seconds: UploadLimits.defaultStatusCheckTimeoutSeconds),
+              onTimeout: () =>
+                  throw TimeoutException('Status check timed out after ${UploadLimits.defaultStatusCheckTimeoutSeconds}s'),
+            );
 
         if (response.statusCode == 200) {
-          final jsonResponse = json.decode(response.body);
+          final jsonResponse =
+              json.decode(response.body) as Map<String, dynamic>;
 
           if (jsonResponse['status'] == 2000) {
             // Upload completed successfully
@@ -142,52 +221,83 @@ class DiawiUploadService implements UploadService {
             final errorMessage =
                 jsonResponse['message'] ?? 'Upload processing failed';
             _logger.severe('❌ Diawi processing failed: $errorMessage');
-            throw Exception('Diawi processing failed: $errorMessage');
+            throw UploadException(
+              'Diawi processing failed: $errorMessage',
+              provider: 'diawi',
+              statusCode: jsonResponse['status'] as int?,
+              responseBody: response.body,
+            );
           } else {
             // Still processing, continue polling
-            final elapsedMinutes = ((attempt + 1) * pollInterval.inSeconds / 60)
-                .toStringAsFixed(1);
             _logger.info(
-              '⏳ Still processing... ($elapsedMinutes min elapsed, attempt ${attempt + 1}/$maxAttempts)',
+              '⏳ Still processing... (attempt $attempts/${UploadLimits.maxPollingAttempts})',
             );
 
-            if (attempt == 10) {
+            if (attempts == 10) {
               _logger.info(
                 '🐌 Taking longer than usual - large files may need more time',
               );
-            } else if (attempt == 20) {
+            } else if (attempts == 30) {
               _logger.info(
                 '⚠️  Processing is taking unusually long - but still trying...',
               );
             }
-
-            await Future<void>.delayed(pollInterval);
           }
         } else {
           _logger.warning(
-            '⚠️  Status check failed with HTTP ${response.statusCode} (attempt ${attempt + 1})',
+            '⚠️  Status check failed with HTTP ${response.statusCode} (attempt $attempts)',
           );
-          await Future<void>.delayed(pollInterval);
         }
-      } catch (e) {
+      } on TimeoutException {
+        _logger.warning('⚠️  Status check timed out (attempt $attempts)');
+        continue;
+      } on SocketException catch (e) {
         _logger.warning(
-          '⚠️  Error checking job status: $e (attempt ${attempt + 1})',
-        );
-        if (attempt > 5) {
+            '⚠️  Network error checking status: ${e.message} (attempt $attempts)');
+        if (attempts > 5) {
           _logger.info(
             '💡 Persistent connection issues - check your internet connection',
           );
         }
-        await Future<void>.delayed(pollInterval);
+        continue;
+      } catch (e) {
+        _logger.warning('⚠️  Error checking job status: $e (attempt $attempts)');
+        continue;
       }
     }
 
-    _logger.severe('❌ Processing timed out after $totalTimeoutMinutes minutes');
+    _logger.severe(
+        '❌ Processing timed out after ${UploadLimits.maxPollingAttempts} attempts');
     _logger.info(
       '💡 The job might still be processing. Check Diawi dashboard or try again later.',
     );
-    throw Exception(
-      'Job processing timed out after $totalTimeoutMinutes minutes',
+    throw UploadException(
+      'Job processing timed out after ${UploadLimits.maxPollingAttempts} attempts',
+      provider: 'diawi',
     );
+  }
+
+  /// Calculates exponential backoff duration with jitter.
+  ///
+  /// Starts at 5 seconds and increases exponentially:
+  /// 5s, 10s, 20s, 40s, 60s (capped at 60s)
+  /// Adds random jitter (±20%) to prevent thundering herd.
+  Duration _calculateBackoff(int attempt) {
+    // Exponential backoff: 5 * 2^attempt, capped at maxPollingBackoffSeconds
+    final baseDelay = min(
+      UploadLimits.initialPollingIntervalSeconds * pow(2, attempt).toInt(),
+      UploadLimits.maxPollingBackoffSeconds,
+    );
+
+    // Add jitter ±20%
+    final jitterRange = (baseDelay * 0.4).toInt();
+    final jitter = Random().nextInt(jitterRange) - (jitterRange ~/ 2);
+
+    return Duration(seconds: baseDelay + jitter);
+  }
+
+  /// Disposes of the HTTP client. Call this when done with the service.
+  void dispose() {
+    _client.close();
   }
 }
